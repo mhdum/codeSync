@@ -1,3 +1,4 @@
+"use client";
 import Navbar from "@/components/NavBar";
 import ParticlesBackground from "@/components/ParticlesBackGround";
 import React from "react";
@@ -8,15 +9,17 @@ interface LayoutProps {
 
 const layout = ({ children }: LayoutProps) => {
   return (
-    <div className="relative w-full h-screen overflow-hidden">
-      <ParticlesBackground />
+    <div className="relative min-h-screen bg-white dark:bg-gray-900 transition-colors duration-500">
+      {/* Particle Background */}
+      <div className="fixed inset-0 z-0">
+        <ParticlesBackground />
+      </div>
 
-      <div className="absolute inset-0 flex flex-col z-10">
+      {/* Main Content */}
+      <div className="relative z-10">
         <Navbar />
 
-        <div className="flex-grow flex items-center justify-center">
-          {children}
-        </div>
+        <main className="container mx-auto px-6 py-12">{children}</main>
       </div>
     </div>
   );
