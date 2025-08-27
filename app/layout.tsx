@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { ThemeProvider } from "@/components/themeProvider";
+import { ClientSessionProvider } from "@/components/ClientSessionProvider";
+import ClientLayoutWrapper from "@/components/ClientLayoutWrapper";
+
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -24,6 +27,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+   
   return (
     <html lang="en" suppressHydrationWarning>
       <body
@@ -35,7 +39,8 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          {/* <ClientSessionProvider>{children}</ClientSessionProvider> */}
+          <ClientLayoutWrapper>{children}</ClientLayoutWrapper>
         </ThemeProvider>
       </body>
     </html>

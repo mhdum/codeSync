@@ -13,22 +13,39 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import ParticlesBackground from "@/components/ParticlesBackGround";
+import { saveUser, getUserByEmail } from "@/lib/fakeDB";
+import { signIn } from "next-auth/react"
+
+
+interface FormData {
+  email: string
+  password: string
+  confirmPassword: string
+}
 
 function SignUp() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  // const [confirmPassword, setConfirmPassword] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    alert(`Logging in with email: ${email} and password: ${password}`);
+    const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (getUserByEmail(email)) {
+      alert("Email already registered")
+      return
+    }
+    saveUser({ email: email, password:password })
+    alert("User registered! Now login.")
+  }
+
+  const handleGoogleLogin = async () => {
+    await signIn("google", { callbackUrl: "/home" }); // Redirects to homepage
   };
 
-  const handleGoogleLogin = () => {
-    alert("Google login clicked");
-  };
 
-  const handleGithubLogin = () => {
-    alert("GitHub login clicked");
+  const handleGithubLogin = async () => {
+    await signIn("github", { callbackUrl: "/home" });
   };
 
   return (

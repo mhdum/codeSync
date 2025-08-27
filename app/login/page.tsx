@@ -11,23 +11,37 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { signIn } from "next-auth/react";
+
 import Link from "next/link";
+
+
+interface LoginForm{
+  email:string
+  password:string
+}
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    alert(`Logging in with email: ${email} and password: ${password}`);
+    const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const res = await signIn("credentials", {
+      redirect: true,
+      email: email,
+      password: password,
+      callbackUrl: "/"
+    })
+    if (res?.error) alert(res.error)
+  }
+
+  const handleGoogleLogin = async () => {
+    await signIn("google", { callbackUrl: "/home" }); // Redirects to homepage
   };
 
-  const handleGoogleLogin = () => {
-    alert("Google login clicked");
-  };
-
-  const handleGithubLogin = () => {
-    alert("GitHub login clicked");
+  const handleGithubLogin = async () => {
+    await signIn("github", { callbackUrl: "/home" });
   };
 
   return (
