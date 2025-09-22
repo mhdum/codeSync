@@ -1,12 +1,12 @@
 // app/api/auth/[...nextauth]/route.ts
-import NextAuth from "next-auth"
-import CredentialsProvider from "next-auth/providers/credentials"
-import GoogleProvider from "next-auth/providers/google"
-import FacebookProvider from "next-auth/providers/facebook"
-import GitHubProvider from "next-auth/providers/github"
-import { getAllUsers, getUserByEmail } from "@/lib/fakeDB"
-
-// Temporary in-memory users array (server-side)
+import NextAuth, { Account, Profile, User } from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+import GoogleProvider from "next-auth/providers/google";
+import FacebookProvider from "next-auth/providers/facebook";
+import GitHubProvider from "next-auth/providers/github";
+import bcrypt from "bcryptjs";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { db } from "@/lib/firebaseConfig"; // make sure the path is correct
 
 export const authOptions = {
   providers: [
@@ -17,21 +17,23 @@ export const authOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        getAllUsers();
-        console.log("All users:", getAllUsers());
-        
-        if (!credentials) return null
-        console.log("Credentials received:", credentials);
-        // Check users in-memory
-        const user = getUserByEmail(credentials.email)
-        if (!user) throw new Error("No user found")
-        if (user.password !== credentials.password) throw new Error("Invalid password")
-        
-        return { id: user.email, email: user.email }
-      }
+      if (!credentials?.email || !credentials?.password) return null;
+
+      const email = credentials.email.toLowerCase(); // normalize
+      const userDocRef = doc(db, "users", email);
+      const userDocSnap = await getDoc(userDocRef);
+
+      if (!userDocSnap.exists()) throw new Error("No user found");
+
+      const userData = userDocSnap.data();
+
+      const isValid = await bcrypt.compare(credentials.password, userData.password);
+      if (!isValid) throw new Error("Invalid password");
+
+      return { id: email, email };
     }
 
-),
+  }),
 
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -48,10 +50,48 @@ export const authOptions = {
   ],
   session: { strategy: "jwt" as const },
   secret: process.env.NEXTAUTH_SECRET,
-  pages: { signIn: "/login" }
-}
+  pages: { signIn: "/login" },
+callbacks: {
+    async signIn({
+      user,
+      account,
+      profile,
+      email,
+      credentials,
+    }: {
+      user: User;
+      account: Account | null;
+      profile?: Profile;
+      email?: { verificationRequest?: boolean } | null;
+      credentials?: Record<string, any> | undefined;
+    }) {
+      try {
+        if (!user.email) return false;
 
-const handler = NextAuth(authOptions)
+        const emailLower = user.email.toLowerCase();
+        const userDocRef = doc(db, "users", emailLower);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (!userDocSnap.exists()) {
+          await setDoc(userDocRef, {
+            email: emailLower,
+            name: user.name || "",
+            image: user.image || "",
+            provider: account?.provider || "unknown",
+            createdAt: new Date(),
+          });
+        }
+
+        return true;
+      } catch (error) {
+        console.error("Error storing OAuth user:", error);
+        return false;
+      }
+    },
+  },
+};
+
+const handler = NextAuth(authOptions);
 
 // App Router requires named exports for HTTP methods
-export { handler as GET, handler as POST }
+export { handler as GET, handler as POST };

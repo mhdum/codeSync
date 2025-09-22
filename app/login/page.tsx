@@ -28,12 +28,14 @@ export function LoginForm() {
     const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const res = await signIn("credentials", {
-      redirect: true,
+      redirect: false,
       email: email,
       password: password,
       callbackUrl: "/"
     })
-    if (res?.error) alert(res.error)
+    if (res?.error) return alert(res.error);
+    window.location.href = "/home"; // manually redirect after session is set
+
   }
 
   const handleGoogleLogin = async () => {

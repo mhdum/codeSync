@@ -14,7 +14,11 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import ParticlesBackground from "@/components/ParticlesBackGround";
 import { saveUser, getUserByEmail } from "@/lib/fakeDB";
-import { signIn } from "next-auth/react"
+import { signIn } from "next-auth/react";
+import { collection, addDoc, getDocs, query, where, setDoc, doc } from "firebase/firestore";
+import { db } from "@/lib/firebaseConfig";
+import bcrypt from "bcryptjs";
+
 
 
 interface FormData {
@@ -28,15 +32,45 @@ function SignUp() {
   const [password, setPassword] = useState("");
   // const [confirmPassword, setConfirmPassword] = useState("");
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (getUserByEmail(email)) {
-      alert("Email already registered")
-      return
+    // if (getUserByEmail(email)) {
+    //   alert("Email already registered")
+    //   return
+    // }
+    // saveUser({ email: email, password:password })
+
+    try {
+        // Check if user already exists
+        const q = query(collection(db, "users"), where("email", "==", email));
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+            alert("Email already registered");
+            return;
+        }
+
+        // Hash password
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Save new user to Firestore
+        await setDoc(doc(db, "users", email.toLowerCase()), {
+          email: email.toLowerCase(),
+          password: hashedPassword,
+          createdAt: new Date(),
+        });
+
+        alert("User registered! Now login.");
+
+    } catch (error) {
+      console.error("Error adding user: ", error);
+      alert("Failed to register user. Try again.");
     }
-    saveUser({ email: email, password:password })
-    alert("User registered! Now login.")
+
+
+
+    
   }
 
   const handleGoogleLogin = async () => {
