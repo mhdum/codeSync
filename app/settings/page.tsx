@@ -1,14 +1,74 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { FileCode, Folder, Users, Settings } from "lucide-react";
+import { FileCode, Folder, Users, Settings, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useEffect, useState } from "react";
 
 export default function SettingsPage() {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [userProfile, setUserProfile] = useState<{
+    name?: string;
+    email?: string;
+    image?: string;
+  } | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const localEmail = localStorage.getItem("userEmail");
+      if (!localEmail) return;
+
+      try {
+        const res = await fetch(`/api/profile/get?email=${localEmail}`);
+        if (!res.ok) throw new Error("Failed to fetch profile");
+        const data = await res.json();
+        setUserProfile(data);
+
+        // ✅ Set form fields
+        setName(data.name || "");
+        setEmail(data.email || "");
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoadingProfile(false);
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
+  const handleSaveProfile = async () => {
+    const localEmail = localStorage.getItem("userEmail");
+    if (!localEmail) return;
+
+    setIsSaving(true);
+    try {
+      const res = await fetch("/api/profile/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, localEmail }),
+      });
+
+      if (!res.ok) throw new Error("Failed to update profile");
+
+      alert("Profile updated successfully");
+    } catch (error) {
+      console.error(error);
+      alert("Error updating profile");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
@@ -21,32 +81,28 @@ export default function SettingsPage() {
             <li>
               <Link href="/dashboard">
                 <Button variant="ghost" className="w-full justify-start">
-                  <FileCode className="mr-2 h-4 w-4" />
-                  Dashboard
+                  <FileCode className="mr-2 h-4 w-4" /> Dashboard
                 </Button>
               </Link>
             </li>
             <li>
               <Link href="/projects">
                 <Button variant="ghost" className="w-full justify-start">
-                  <Folder className="mr-2 h-4 w-4" />
-                  Projects
+                  <Folder className="mr-2 h-4 w-4" /> Projects
                 </Button>
               </Link>
             </li>
             <li>
               <Link href="/collaborators">
                 <Button variant="ghost" className="w-full justify-start">
-                  <Users className="mr-2 h-4 w-4" />
-                  Collaborators
+                  <Users className="mr-2 h-4 w-4" /> Collaborators
                 </Button>
               </Link>
             </li>
             <li>
               <Link href="/settings">
                 <Button variant="default" className="w-full justify-start">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
+                  <Settings className="mr-2 h-4 w-4" /> Settings
                 </Button>
               </Link>
             </li>
@@ -60,10 +116,18 @@ export default function SettingsPage() {
         <header className="bg-white border-b p-4 flex justify-between items-center">
           <h2 className="text-xl font-semibold">Settings</h2>
           <div className="flex items-center space-x-4">
-            <Avatar>
-              <AvatarImage src="/placeholder-user.jpg" alt="User" />
-              <AvatarFallback>JD</AvatarFallback>
-            </Avatar>
+            {/* Avatar Skeleton */}
+            {loadingProfile ? (
+              <div className="w-10 h-10 rounded-full bg-gray-200 animate-pulse"></div>
+            ) : userProfile?.image ? (
+              <Avatar>
+                <AvatarImage src={userProfile.image} alt={userProfile.name || "User"} />
+              </Avatar>
+            ) : (
+              <Avatar>
+                <AvatarFallback>{userProfile?.email?.charAt(0).toUpperCase() || "U"}</AvatarFallback>
+              </Avatar>
+            )}
           </div>
         </header>
 
@@ -77,22 +141,63 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="flex items-center space-x-4">
-                    <Avatar className="h-16 w-16">
-                      <AvatarImage src="/placeholder-user.jpg" alt="User" />
-                      <AvatarFallback>JD</AvatarFallback>
-                    </Avatar>
-                    <Button variant="outline">Change Avatar</Button>
-                  </div>
+                  {/* Avatar + Button Skeleton */}
+                  {loadingProfile ? (
+                    <div className="flex items-center space-x-4">
+                      <div className="h-16 w-16 rounded-full bg-gray-200 animate-pulse"></div>
+                      <div className="h-10 w-32 bg-gray-200 animate-pulse rounded-md"></div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center space-x-4">
+                      <Avatar className="h-16 w-16">
+                        <AvatarImage src={userProfile?.image || "/placeholder-user.jpg"} alt="User" />
+                        <AvatarFallback>{userProfile?.name?.charAt(0).toUpperCase() || "U"}</AvatarFallback>
+                      </Avatar>
+                      <Button variant="outline">Change Avatar</Button>
+                    </div>
+                  )}
+
+                  {/* Name Skeleton */}
                   <div className="space-y-2">
                     <Label htmlFor="name">Name</Label>
-                    <Input id="name" defaultValue="John Doe" />
+                    {loadingProfile ? (
+                      <div className="h-10 bg-gray-200 animate-pulse rounded-md"></div>
+                    ) : (
+                      <Input
+                        id="name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Enter your name"
+                      />
+                    )}
                   </div>
+
+                  {/* Email Skeleton */}
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" defaultValue="john@example.com" />
+                    {loadingProfile ? (
+                      <div className="h-10 bg-gray-200 animate-pulse rounded-md"></div>
+                    ) : (
+                      <Input
+                        id="email"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                      />
+                    )}
                   </div>
-                  <Button>Save Profile</Button>
+
+                  {/* Save Profile Button */}
+                  <Button onClick={handleSaveProfile} disabled={isSaving}>
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin mr-2 inline-block" />
+                        Saving...
+                      </>
+                    ) : (
+                      "Save Profile"
+                    )}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -103,6 +208,7 @@ export default function SettingsPage() {
                 <CardTitle>Notification Preferences</CardTitle>
               </CardHeader>
               <CardContent>
+                {/* Here you can add skeletons if notification preferences are loaded via API */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -132,29 +238,6 @@ export default function SettingsPage() {
                     </Select>
                   </div>
                   <Button>Save Notification Settings</Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Account Management */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Account Management</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Change Password</Label>
-                    <Input id="password" type="password" placeholder="New password" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="confirm-password">Confirm New Password</Label>
-                    <Input id="confirm-password" type="password" placeholder="Confirm new password" />
-                  </div>
-                  <div className="flex space-x-4">
-                    <Button>Update Password</Button>
-                    <Button variant="destructive">Delete Account</Button>
-                  </div>
                 </div>
               </CardContent>
             </Card>

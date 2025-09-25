@@ -14,7 +14,7 @@ export default function ClientRedirect({ children }: { children: React.ReactNode
 
   useEffect(() => {
     if (status === "authenticated" || localUserEmail) {
-      router.replace("/home"); // redirect immediately
+      router.replace("/dashboard"); // redirect immediately
     } else if (status === "loading") {
       // Show a loading state if the session is still loading
       setChecking(false);

@@ -1,39 +1,54 @@
 "use client";
 
 import { ReactNode, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { SessionProvider, useSession } from "next-auth/react";
 
 interface Props {
   children: ReactNode;
 }
 
-// This handles the redirect logic after login
 function RedirectLogic({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { data: session, status } = useSession();
-const [checking, setChecking] = useState(true);
-const localUserEmail = typeof window !== "undefined" ? localStorage.getItem("userEmail") : null;
-
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    // If user is authenticated or localStorage has userEmail, redirect to /home
+    const localUserEmail =
+      typeof window !== "undefined" ? localStorage.getItem("userEmail") : null;
+
+    if (status === "loading") return;
+
+    // Redirect unauthenticated users to login
     if (
-      (status === "authenticated" && session?.user?.email) ||
-      localUserEmail
+      status === "unauthenticated" &&
+      !localUserEmail &&
+      pathname !== "/login"
     ) {
-      setChecking(false);
-      router.push("/home");
-    }else if (status === "loading") {
-      // Show a loading state if the session is still loading
-      setChecking(false);
+      router.push("/login");
+      return;
     }
 
-    
-  }, [session, status, router]);
+    // Redirect authenticated users from root "/" to dashboard
+    if (
+      status === "authenticated" &&
+      localUserEmail &&
+      (pathname === "/" || pathname === "/login")
+    ) {
+      router.push("/dashboard");
+      return;
+    }
+
+    setChecking(false);
+  }, [status, router, pathname]);
 
   if (checking || status === "loading") {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        Loading...
+      </div>
+    );
   }
 
   return <>{children}</>;
@@ -41,8 +56,7 @@ const localUserEmail = typeof window !== "undefined" ? localStorage.getItem("use
 
 export default function ClientLayoutWrapper({ children }: Props) {
   return (
-    // SessionProvider must wrap everything that uses useSession
-    <SessionProvider>
+    <SessionProvider refetchOnWindowFocus={false}>
       <RedirectLogic>{children}</RedirectLogic>
     </SessionProvider>
   );

@@ -6,7 +6,7 @@ import FacebookProvider from "next-auth/providers/facebook";
 import GitHubProvider from "next-auth/providers/github";
 import bcrypt from "bcryptjs";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { db } from "@/lib/firebaseConfig"; // make sure the path is correct
+import { db } from "../../../../lib/firebaseConfig"; // make sure the path is correct
 
 export const authOptions = {
   providers: [
