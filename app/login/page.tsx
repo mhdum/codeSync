@@ -34,16 +34,16 @@ export function LoginForm() {
       callbackUrl: "/"
     })
     if (res?.error) return alert(res.error);
-    window.location.href = "/home"; // manually redirect after session is set
+    window.location.href = "/dashboard"; // manually redirect after session is set
 
   }
 
   const handleGoogleLogin = async () => {
-    await signIn("google", { callbackUrl: "/home" }); // Redirects to homepage
+    await signIn("google", { callbackUrl: "/dashboard" }); // Redirects to homepage
   };
 
   const handleGithubLogin = async () => {
-    await signIn("github", { callbackUrl: "/home" });
+    await signIn("github", { callbackUrl: "/dashboard" });
   };
 
   return (

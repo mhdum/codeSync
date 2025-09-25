@@ -15,68 +15,69 @@ import Link from "next/link";
 import ParticlesBackground from "@/components/ParticlesBackGround";
 import { saveUser, getUserByEmail } from "@/lib/fakeDB";
 import { signIn } from "next-auth/react";
-import { collection, addDoc, getDocs, query, where, setDoc, doc } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  where,
+  setDoc,
+  doc,
+} from "firebase/firestore";
 import { db } from "@/lib/firebaseConfig";
 import bcrypt from "bcryptjs";
 
-
-
 interface FormData {
-  email: string
-  password: string
-  confirmPassword: string
+  email: string;
+  password: string;
+  confirmPassword: string;
 }
 
 function SignUp() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  // const [confirmPassword, setConfirmPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
 
-    const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    // if (getUserByEmail(email)) {
-    //   alert("Email already registered")
-    //   return
-    // }
-    // saveUser({ email: email, password:password })
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (password !== confirmPassword) {
+      setPasswordError("Passwords do not match");
+      return;
+    }
+    setPasswordError("");
 
     try {
-        // Check if user already exists
-        const q = query(collection(db, "users"), where("email", "==", email));
-        const querySnapshot = await getDocs(q);
+      // Check if user already exists
+      const q = query(collection(db, "users"), where("email", "==", email));
+      const querySnapshot = await getDocs(q);
 
-        if (!querySnapshot.empty) {
-            alert("Email already registered");
-            return;
-        }
+      if (!querySnapshot.empty) {
+        alert("Email already registered");
+        return;
+      }
 
-        // Hash password
-        const hashedPassword = await bcrypt.hash(password, 10);
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Save new user to Firestore
-        await setDoc(doc(db, "users", email.toLowerCase()), {
-          email: email.toLowerCase(),
-          password: hashedPassword,
-          createdAt: new Date(),
-        });
+      // Save new user to Firestore
+      await setDoc(doc(db, "users", email.toLowerCase()), {
+        email: email.toLowerCase(),
+        password: hashedPassword,
+        createdAt: new Date(),
+      });
 
-        alert("User registered! Now login.");
-
+      alert("User registered! Now login.");
     } catch (error) {
       console.error("Error adding user: ", error);
       alert("Failed to register user. Try again.");
     }
-
-
-
-    
-  }
-
-  const handleGoogleLogin = async () => {
-    await signIn("google", { callbackUrl: "/home" }); // Redirects to homepage
   };
 
+  const handleGoogleLogin = async () => {
+    await signIn("google", { callbackUrl: "/home" });
+  };
 
   const handleGithubLogin = async () => {
     await signIn("github", { callbackUrl: "/home" });
@@ -111,20 +112,23 @@ function SignUp() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
+              autoComplete="new-password"
             />
           </div>
           <div>
-            <Label htmlFor="password">Confirm Password</Label>
+            <Label htmlFor="confirmPassword">Confirm Password</Label>
             <Input
-              id="password"
+              id="confirmPassword"
               type="password"
-              placeholder="Your password"
+              placeholder="Confirm your password"
               required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              autoComplete="new-password"
             />
+            {passwordError && (
+              <p className="text-red-500 text-sm mt-1">{passwordError}</p>
+            )}
           </div>
           <Button type="submit" className="w-full">
             Sign Up
@@ -144,9 +148,8 @@ function SignUp() {
             variant="outline"
             className="flex-1 flex items-center justify-center gap-2"
             onClick={handleGoogleLogin}
-            aria-label="Login with Google"
+            aria-label="Sign up with Google"
           >
-            {/* Google Icon */}
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 533.5 544.3"
@@ -165,7 +168,7 @@ function SignUp() {
             variant="outline"
             className="flex-1 flex items-center justify-center gap-2"
             onClick={handleGithubLogin}
-            aria-label="Login with GitHub"
+            aria-label="Sign up with GitHub"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
