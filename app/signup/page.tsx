@@ -76,11 +76,11 @@ function SignUp() {
   };
 
   const handleGoogleLogin = async () => {
-    await signIn("google", { callbackUrl: "/home" });
+    await signIn("google", { callbackUrl: "/dashboard" });
   };
 
   const handleGithubLogin = async () => {
-    await signIn("github", { callbackUrl: "/home" });
+    await signIn("github", { callbackUrl: "/dashboard" });
   };
 
   return (

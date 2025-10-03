@@ -250,9 +250,7 @@ export default function Dashboard() {
                 <AvatarFallback>{userProfile?.email?.charAt(0).toUpperCase() || "U"}</AvatarFallback>
               </Avatar>
             )}
-
-
-            {/* Logout Button
+            
             <Button
               variant="destructive"
               onClick={async () => {
@@ -265,7 +263,7 @@ export default function Dashboard() {
           }}
           >
             Logout
-          </Button> */}
+          </Button>
           </div>
         </header>
 

@@ -13,37 +13,52 @@ function RedirectLogic({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { data: session, status } = useSession();
   const [checking, setChecking] = useState(true);
+  const [redirecting, setRedirecting] = useState(false);
 
   useEffect(() => {
     const localUserEmail =
       typeof window !== "undefined" ? localStorage.getItem("userEmail") : null;
+    
+    console.log(`loading status ${status}`);
 
     if (status === "loading") return;
 
     // Redirect unauthenticated users to login
     if (
-      status === "unauthenticated" &&
-      !localUserEmail &&
-      pathname !== "/login"
+      status === "unauthenticated"
+      
+      //  &&  !localUserEmail 
+      
+      // && pathname !== "/login"
     ) {
-      router.push("/login");
+      console.log("pusing user to home ... ");
+      if (!redirecting) {
+        setRedirecting(true);
+        router.push("/"); // trigger redirect
+      }
+      // router.push("/");
       return;
     }
 
     // Redirect authenticated users from root "/" to dashboard
     if (
       status === "authenticated" &&
-      localUserEmail &&
-      (pathname === "/" || pathname === "/login")
+      localUserEmail 
+
+      // && (pathname === "/" || pathname === "/login")
+      
     ) {
-      router.push("/dashboard");
+      if (!redirecting) {
+        setRedirecting(true);
+        router.push("/dashboard");
+      }
       return;
     }
 
     setChecking(false);
   }, [status, router, pathname]);
 
-  if (checking || status === "loading") {
+  if (checking && status === "loading" && !redirecting) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         Loading...
