@@ -5,13 +5,17 @@ import Editor from "@monaco-editor/react";
 import { Button } from "@/components/ui/button";
 import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import * as Y from "yjs";
+import { WebsocketProvider } from "y-websocket";
+import { MonacoBinding } from "y-monaco";
+
 import {
   doc,
   updateDoc,
   serverTimestamp,
   getDoc,
 } from "firebase/firestore";
-import { db } from "@/lib/firebaseConfig"; // Make sure Firebase is initialized
+import { db } from "@/lib/firebaseConfig";
 
 export default function ProjectEditorPage() {
   const params = useSearchParams();
@@ -25,7 +29,9 @@ export default function ProjectEditorPage() {
   const [isRunning, setIsRunning] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  const editorRef = useRef<any>(null);
   const saveTimeout = useRef<NodeJS.Timeout | null>(null);
+  const ydocRef = useRef<Y.Doc | null>(null);
 
   // Load initial content from Firestore
   useEffect(() => {
@@ -47,29 +53,33 @@ export default function ProjectEditorPage() {
     fetchFileContent();
   }, [fileId]);
 
-  // Auto-save function (debounced)
-  const handleAutoSave = (newCode: string) => {
-    setCode(newCode);
-
+  // Initialize Yjs for collaborative editing
+  useEffect(() => {
     if (!fileId) return;
+    const ydoc = new Y.Doc();
+    ydocRef.current = ydoc;
 
-    if (saveTimeout.current) clearTimeout(saveTimeout.current);
+    // You can run your own websocket server or use a public one (for testing only)
+    const provider = new WebsocketProvider(
+      "wss://demos.yjs.dev", // replace with your server if needed
+      `project-${fileId}`,
+      ydoc
+    );
 
-    saveTimeout.current = setTimeout(async () => {
-      setIsSaving(true);
-      try {
-        const fileRef = doc(db, "project_files", fileId);
-        await updateDoc(fileRef, {
-          content: newCode,
-          updatedAt: serverTimestamp(),
-        });
-      } catch (err) {
-        console.error("Error auto-saving file:", err);
-      } finally {
-        setIsSaving(false);
+    const yText = ydoc.getText("monaco");
+
+    const disposeMonacoBinding = () => {
+      if (editorRef.current) {
+        new MonacoBinding(yText, editorRef.current.getModel(), new Set([editorRef.current]), provider.awareness);
       }
-    }, 1000); // Save 1s after last keystroke
-  };
+    };
+
+    // Cleanup on unmount
+    return () => {
+      provider.destroy();
+      ydoc.destroy();
+    };
+  }, [fileId]);
 
   const handleRun = async () => {
     setIsRunning(true);
@@ -99,9 +109,32 @@ export default function ProjectEditorPage() {
     }
   };
 
+  // Auto-save function (debounced)
+  const handleAutoSave = (newCode: string) => {
+    setCode(newCode);
+
+    if (!fileId) return;
+
+    if (saveTimeout.current) clearTimeout(saveTimeout.current);
+
+    saveTimeout.current = setTimeout(async () => {
+      setIsSaving(true);
+      try {
+        const fileRef = doc(db, "project_files", fileId);
+        await updateDoc(fileRef, {
+          content: newCode,
+          updatedAt: serverTimestamp(),
+        });
+      } catch (err) {
+        console.error("Error auto-saving file:", err);
+      } finally {
+        setIsSaving(false);
+      }
+    }, 1000);
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-white">
-      {/* Top Bar */}
       <div className="flex justify-between items-center p-3 border-b border-gray-700 bg-gray-800">
         <h2 className="font-semibold text-lg">
           Editing: <span className="text-blue-400">{filename}.{extension}</span>
@@ -111,7 +144,6 @@ export default function ProjectEditorPage() {
             </span>
           )}
         </h2>
-
         <Button
           onClick={handleRun}
           disabled={isRunning}
@@ -127,9 +159,7 @@ export default function ProjectEditorPage() {
         </Button>
       </div>
 
-      {/* Split Editor + Output */}
       <div className="flex flex-1">
-        {/* Editor Section */}
         <div className="flex-1 flex flex-col border-r border-gray-700">
           <div className="px-3 py-2 border-b border-gray-700 bg-gray-800">
             <h3 className="font-medium text-sm text-gray-300">Editor</h3>
@@ -139,11 +169,29 @@ export default function ProjectEditorPage() {
             theme="vs-dark"
             defaultLanguage={extension}
             value={code}
+            onMount={(editor) => {
+                const model = editor.getModel();
+                if (!model) return; // Guard against null
+              editorRef.current = editor;
+              // Initialize MonacoBinding here if Yjs already loaded
+              if (ydocRef.current) {
+                const provider = new WebsocketProvider(
+                  "wss://demos.yjs.dev",
+                  `project-${fileId}`,
+                  ydocRef.current
+                );
+                 new MonacoBinding(
+      ydocRef.current.getText("monaco"),
+      model, // guaranteed non-null now
+      new Set([editor]),
+      provider.awareness
+    );
+              }
+            }}
             onChange={(val) => handleAutoSave(val || "")}
           />
         </div>
 
-        {/* Output Section */}
         <div className="w-1/3 flex flex-col">
           <div className="px-3 py-2 border-b border-gray-700 bg-gray-800">
             <h3 className="font-medium text-sm text-gray-300">Output</h3>
