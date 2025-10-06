@@ -8,13 +8,7 @@ import { Loader2 } from "lucide-react";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { MonacoBinding } from "y-monaco";
-
-import {
-  doc,
-  updateDoc,
-  serverTimestamp,
-  getDoc,
-} from "firebase/firestore";
+import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebaseConfig";
 
 export default function ProjectEditorPage() {
@@ -22,68 +16,126 @@ export default function ProjectEditorPage() {
   const filename = params.get("filename") || "untitled";
   const extension = params.get("extension") || "js";
   const fileId = params.get("fileId") || "";
-  const projectId = params.get("projectId") || "";
 
-  const [code, setCode] = useState("// Start coding here...");
-  const [output, setOutput] = useState<string>("");
+  const [output, setOutput] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-
   const editorRef = useRef<any>(null);
-  const saveTimeout = useRef<NodeJS.Timeout | null>(null);
   const ydocRef = useRef<Y.Doc | null>(null);
+  const providerRef = useRef<WebsocketProvider | null>(null);
+  const yTextRef = useRef<Y.Text | null>(null);
+  const saveTimeout = useRef<NodeJS.Timeout | null>(null);
+  const [isLeader, setIsLeader] = useState(false);
 
-  // Load initial content from Firestore
+  // ✅ Initialize Yjs + Load Firestore content only once
   useEffect(() => {
     if (!fileId) return;
 
-    const fetchFileContent = async () => {
-      try {
-        const fileRef = doc(db, "project_files", fileId);
-        const fileSnap = await getDoc(fileRef);
-        if (fileSnap.exists()) {
-          const data = fileSnap.data();
-          setCode(data.content || "// Start coding here...");
-        }
-      } catch (err) {
-        console.error("Error fetching file content:", err);
-      }
-    };
-
-    fetchFileContent();
-  }, [fileId]);
-
-  // Initialize Yjs for collaborative editing
-  useEffect(() => {
-    if (!fileId) return;
     const ydoc = new Y.Doc();
-    ydocRef.current = ydoc;
-
-    // You can run your own websocket server or use a public one (for testing only)
     const provider = new WebsocketProvider(
-      "wss://demos.yjs.dev", // replace with your server if needed
+      "wss://demos.yjs.dev/ws", // public demo WebSocket
       `project-${fileId}`,
       ydoc
     );
 
     const yText = ydoc.getText("monaco");
+    ydocRef.current = ydoc;
+    providerRef.current = provider;
+    yTextRef.current = yText;
 
-    const disposeMonacoBinding = () => {
-      if (editorRef.current) {
-        new MonacoBinding(yText, editorRef.current.getModel(), new Set([editorRef.current]), provider.awareness);
+    // Load Firestore content only if Yjs doc is empty
+    const init = async () => {
+      try {
+        if (yText.length === 0) {
+          const fileRef = doc(db, "project_files", fileId);
+          const fileSnap = await getDoc(fileRef);
+          if (fileSnap.exists()) {
+            const data = fileSnap.data();
+            // const initialContent = data.content || "// Start coding here...";
+            const initialContent = "";
+            yText.insert(0, initialContent);
+          }
+        }
+      } catch (err) {
+        console.error("Error loading Firestore content:", err);
       }
     };
+    init();
 
-    // Cleanup on unmount
+    // ✅ Elect a leader tab (lowest random clientID wins)
+    const awareness = provider.awareness;
+    const clientId = ydoc.clientID;
+    awareness.setLocalStateField("clientId", clientId);
+
+    const electLeader = () => {
+      const states = Array.from(awareness.getStates().values());
+      const ids = states.map((s) => s.clientId).filter(Boolean);
+      const minId = Math.min(...ids);
+      setIsLeader(clientId === minId);
+    };
+
+    awareness.on("update", electLeader);
+    electLeader(); // run initially
+
     return () => {
       provider.destroy();
       ydoc.destroy();
     };
   }, [fileId]);
 
+  // ✅ Setup Monaco binding
+  const handleEditorMount = (editor: any) => {
+    editorRef.current = editor;
+    const model = editor.getModel();
+    if (!model || !yTextRef.current || !providerRef.current) return;
+
+    new MonacoBinding(
+      yTextRef.current,
+      model,
+      new Set([editor]),
+      providerRef.current.awareness
+    );
+
+    // When Yjs doc updates, only leader will save periodically
+    const ydoc = ydocRef.current;
+    if (ydoc) {
+      ydoc.on("update", () => {
+        if (isLeader) {
+          const newCode = model.getValue();
+          handleAutoSave(newCode);
+        }
+      });
+    }
+  };
+
+  // ✅ Debounced auto-save (only leader tab)
+  const handleAutoSave = (newCode: string) => {
+    if (!fileId || !isLeader) return;
+
+    if (saveTimeout.current) clearTimeout(saveTimeout.current);
+    saveTimeout.current = setTimeout(async () => {
+      setIsSaving(true);
+      try {
+        const fileRef = doc(db, "project_files", fileId);
+        await updateDoc(fileRef, {
+          content: newCode,
+          updatedAt: serverTimestamp(),
+        });
+      } catch (err) {
+        console.error("Error saving Firestore:", err);
+      } finally {
+        setIsSaving(false);
+      }
+    }, 1500);
+  };
+
+  // ✅ Run code
   const handleRun = async () => {
+    if (!editorRef.current) return;
+    const code = editorRef.current.getValue();
     setIsRunning(true);
     setOutput("");
+
     try {
       const res = await fetch("https://emkc.org/api/v2/piston/execute", {
         method: "POST",
@@ -96,11 +148,7 @@ export default function ProjectEditorPage() {
       });
 
       const result = await res.json();
-      if (result.run) {
-        setOutput(result.run.output || "No output");
-      } else {
-        setOutput("No output");
-      }
+      setOutput(result.run?.output || "No output");
     } catch (err) {
       console.error("Run error:", err);
       setOutput("Error running code");
@@ -109,56 +157,43 @@ export default function ProjectEditorPage() {
     }
   };
 
-  // Auto-save function (debounced)
-  const handleAutoSave = (newCode: string) => {
-    setCode(newCode);
-
-    if (!fileId) return;
-
-    if (saveTimeout.current) clearTimeout(saveTimeout.current);
-
-    saveTimeout.current = setTimeout(async () => {
-      setIsSaving(true);
-      try {
-        const fileRef = doc(db, "project_files", fileId);
-        await updateDoc(fileRef, {
-          content: newCode,
-          updatedAt: serverTimestamp(),
-        });
-      } catch (err) {
-        console.error("Error auto-saving file:", err);
-      } finally {
-        setIsSaving(false);
-      }
-    }, 1000);
-  };
-
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-white">
+      {/* Header */}
       <div className="flex justify-between items-center p-3 border-b border-gray-700 bg-gray-800">
         <h2 className="font-semibold text-lg">
-          Editing: <span className="text-blue-400">{filename}.{extension}</span>
+          Editing:{" "}
+          <span className="text-blue-400">
+            {filename}.{extension}
+          </span>
           {isSaving && (
             <span className="ml-2 text-sm text-gray-400 flex items-center">
               <Loader2 className="w-4 h-4 animate-spin mr-1" /> Saving...
             </span>
           )}
         </h2>
-        <Button
-          onClick={handleRun}
-          disabled={isRunning}
-          className="flex items-center gap-2"
-        >
-          {isRunning ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" /> Running...
-            </>
-          ) : (
-            "Run Code"
-          )}
-        </Button>
+
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-gray-400">
+            {isLeader ? "Leader tab (saving enabled)" : "Viewer tab (sync only)"}
+          </span>
+          <Button
+            onClick={handleRun}
+            disabled={isRunning}
+            className="flex items-center gap-2"
+          >
+            {isRunning ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> Running...
+              </>
+            ) : (
+              "Run Code"
+            )}
+          </Button>
+        </div>
       </div>
 
+      {/* Editor & Output */}
       <div className="flex flex-1">
         <div className="flex-1 flex flex-col border-r border-gray-700">
           <div className="px-3 py-2 border-b border-gray-700 bg-gray-800">
@@ -168,27 +203,8 @@ export default function ProjectEditorPage() {
             height="100%"
             theme="vs-dark"
             defaultLanguage={extension}
-            value={code}
-            onMount={(editor) => {
-                const model = editor.getModel();
-                if (!model) return; // Guard against null
-              editorRef.current = editor;
-              // Initialize MonacoBinding here if Yjs already loaded
-              if (ydocRef.current) {
-                const provider = new WebsocketProvider(
-                  "wss://demos.yjs.dev",
-                  `project-${fileId}`,
-                  ydocRef.current
-                );
-                 new MonacoBinding(
-      ydocRef.current.getText("monaco"),
-      model, // guaranteed non-null now
-      new Set([editor]),
-      provider.awareness
-    );
-              }
-            }}
-            onChange={(val) => handleAutoSave(val || "")}
+            defaultValue="// Start coding here..."
+            onMount={handleEditorMount}
           />
         </div>
 
