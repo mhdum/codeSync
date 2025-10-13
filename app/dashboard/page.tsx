@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FileCode, Folder, Users, Settings, Loader2 } from "lucide-react";
+import { FileCode, Folder, Users, Settings, Loader2, Send } from "lucide-react";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
@@ -35,8 +35,16 @@ export default function Dashboard() {
   const [loadingProfile, setLoadingProfile] = useState(true);
   const dialogCloseRef = useRef<HTMLButtonElement>(null);
   const [isSaving, setIsSaving] = useState(false);
+    const [inviteEmail, setInviteEmail] = useState("");
+  const [sendingInvite, setSendingInvite] = useState(false);
+  const inviteCloseRef = useRef<HTMLButtonElement>(null);
 
   const [userProfile, setUserProfile] = useState<{ name?: string; email?: string; image?: string } | null>(null);
+
+  const [selectedProjects, setSelectedProjects] = useState<Project[]>([]);
+
+  const [ownedProjects, setOwnedProjects] = useState<Project[]>([]);
+
 
   // Store user email locally
   useEffect(() => {
@@ -47,8 +55,10 @@ export default function Dashboard() {
 
   // Fetch profile and projects
   useEffect(() => {
+    const email = localStorage.getItem("userEmail");
+    if (!email) return;
     const fetchProfile = async () => {
-      const email = localStorage.getItem("userEmail");
+      
       if (!email) return;
 
       try {
@@ -63,30 +73,116 @@ export default function Dashboard() {
       }
     };
 
-    const fetchProjects = async () => {
-      const ownerid = localStorage.getItem("userEmail");
-      if (!ownerid) return;
+    // const fetchProjects = async () => {
+    //   const ownerid = localStorage.getItem("userEmail");
+    //   if (!ownerid) return;
 
-      try {
-        const res = await fetch(`/api/project/get?ownerid=${encodeURIComponent(ownerid)}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        if (Array.isArray(data.projects)) {
-          const projectsWithDate = data.projects.map((proj: any) => ({
-            ...proj,
-            createdAt: proj.createdAt?.seconds ? new Date(proj.createdAt.seconds * 1000) : new Date(),
-          }));
-          setProjects(projectsWithDate);
-        }
-      } catch (err) {
-        console.error("Error fetching projects:", err);
-      } finally {
-        setLoadingProjects(false);
+    //   try {
+    //     const res = await fetch(`/api/project/get?ownerid=${encodeURIComponent(ownerid)}`);
+    //     if (!res.ok) return;
+    //     const data = await res.json();
+    //     if (Array.isArray(data.projects)) {
+    //       const projectsWithDate = data.projects.map((proj: any) => ({
+    //         ...proj,
+    //         createdAt: proj.createdAt?.seconds ? new Date(proj.createdAt.seconds * 1000) : new Date(),
+    //       }));
+    //       setProjects(projectsWithDate);
+    //     }
+    //   } catch (err) {
+    //     console.error("Error fetching projects:", err);
+    //   } finally {
+    //     setLoadingProjects(false);
+    //   }
+    // };
+
+        const parseCreatedAt = (raw: any) => {
+    if (!raw) return new Date();
+    if (raw.seconds) return new Date(raw.seconds * 1000); // Firestore timestamp
+    if (typeof raw === "string") return new Date(raw); // ISO string
+    if (raw instanceof Date) return raw;
+    return new Date();
+  };
+
+  const fetchOwned = async () => {
+    try {
+      const res = await fetch(`/api/project/get?ownerid=${encodeURIComponent(email)}`);
+      if (!res.ok) {
+        console.warn("project/get failed", res.status);
+        return [];
       }
-    };
+      const json = await res.json();
+      const list = (json.projects || []).map((p: any) => ({
+        project_id: p.project_id ?? p.id ?? null,
+        name: p.name ?? "Untitled",
+        ownerId: p.ownerid ?? email,
+        createdAt: p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : (p.createdAt ? new Date(p.createdAt) : new Date()),
+        role: "owner",
+      }));
+      console.log("Owned projects:", list);
+      return list;
+    } catch (e) {
+      console.error("fetchOwned error", e);
+      return [];
+    }
+  };
+
+  const fetchCollaborated = async () => {
+    try {
+      const res = await fetch(`/api/collaborations/get?email=${encodeURIComponent(email)}`);
+      if (!res.ok) {
+        console.warn("collaborations/get failed", res.status);
+        return [];
+      }
+      const json = await res.json();
+      console.log("Collaborations API response:", json);
+      const list = (json.projects || []).map((p: any) => ({
+        project_id: p.project_id ?? p.id ?? null,
+        name: p.name ?? "Untitled",
+        ownerId: p.ownerId ?? p.ownerid ?? null,
+        createdAt: parseCreatedAt(p.createdAt),
+        role: "collaborator",
+      }));
+      console.log("Collaborated projects parsed:", list);
+      return list;
+    } catch (e) {
+      console.error("fetchCollaborated error", e);
+      return [];
+    }
+  };
+
+  const loadAll = async () => {
+  setLoadingProjects(true);
+  try {
+    const [owned, collaborated] = await Promise.all([fetchOwned(), fetchCollaborated()]);
+
+    // save owner-only list
+    setOwnedProjects(owned);
+
+    // dedupe by project_id (keep owner version if duplicate)
+    const map = new Map<string, any>();
+    [...owned, ...collaborated].forEach((p) => {
+      if (!p.project_id) return; // skip invalid
+      if (!map.has(p.project_id)) map.set(p.project_id, p);
+      else {
+        const existing = map.get(p.project_id);
+        if (existing.role !== "owner" && p.role === "owner") map.set(p.project_id, p);
+      }
+    });
+    const merged = Array.from(map.values());
+    console.log("Merged projects:", merged);
+    setProjects(merged);
+  } catch (e) {
+    console.error("loadAll error", e);
+  } finally {
+    setLoadingProjects(false);
+  }
+};
+
+
+  loadAll();
 
     fetchProfile();
-    fetchProjects();
+    // fetchProjects();
   }, []);
 
   if (status === "loading") return <p>Loading...</p>;
@@ -141,6 +237,46 @@ export default function Dashboard() {
     }
   };
 
+    // ✉️ Send Invite
+  const handleSendInvite = async () => {
+  if (!inviteEmail) return alert("Please enter an email address.");
+  if (selectedProjects.length === 0) return alert("Please select at least one project.");
+
+  const senderId = localStorage.getItem("userEmail");
+  if (!senderId) return alert("Missing sender info.");
+
+  setSendingInvite(true);
+  try {
+    // Send invite for all selected projects
+    for (const project of selectedProjects) {
+      const res = await fetch("/api/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: inviteEmail,
+          projectId: project.project_id,
+          projectName: project.name,
+          selectedProjects, 
+          senderId,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Failed to send invite");
+    }
+
+    alert(`✅ Invitation sent to ${inviteEmail}`);
+    setInviteEmail("");
+    setSelectedProjects([]);
+    inviteCloseRef.current?.click();
+  } catch (err: any) {
+    console.error("Invite send error:", err);
+    alert(err.message || "Error sending invite.");
+  } finally {
+    setSendingInvite(false);
+  }
+};
+
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
@@ -189,9 +325,98 @@ export default function Dashboard() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
+
+
+
         <header className="bg-white border-b p-4 flex justify-between items-center">
           <h2 className="text-xl font-semibold">Dashboard</h2>
           <div className="flex items-center space-x-4">
+            {/* 🔹 Send Invite Dialog */}
+            <Dialog>
+  <DialogTrigger asChild>
+    <Button variant="default" className="flex items-center gap-2">
+      <Send className="w-4 h-4" />
+      Send Invite
+    </Button>
+  </DialogTrigger>
+  <DialogContent className="sm:max-w-[425px]">
+    <DialogHeader>
+      <DialogTitle>Send Collaboration Invite</DialogTitle>
+      <DialogDescription>
+        Type the email of the person you want to invite and select the project(s)
+      </DialogDescription>
+    </DialogHeader>
+
+    <div className="mt-4 space-y-3">
+      <Label htmlFor="inviteEmail">Email</Label>
+      <Input
+        id="inviteEmail"
+        type="email"
+        placeholder="example@gmail.com"
+        value={inviteEmail}
+        onChange={(e) => setInviteEmail(e.target.value)}
+      />
+
+      <Label className="mt-4">Select Project(s)</Label>
+      {loadingProjects ? (
+  <div className="flex items-center gap-2 mt-2">
+    <Loader2 className="w-4 h-4 animate-spin" />
+    <span>Loading projects...</span>
+  </div>
+) : ownedProjects.length === 0 ? (
+  <p className="text-sm text-gray-500 mt-2">No projects available to invite collaborators to.</p>
+) : (
+  <div className="space-y-2 mt-2 max-h-60 overflow-y-auto">
+    {ownedProjects.map((project) => (
+      <div key={project.project_id} className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          id={`project-${project.project_id}`}
+          checked={selectedProjects.some((p) => p.project_id === project.project_id)}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setSelectedProjects((prev) => [...prev, project]);
+            } else {
+              setSelectedProjects((prev) =>
+                prev.filter((p) => p.project_id !== project.project_id)
+              );
+            }
+          }}
+          className="w-4 h-4"
+        />
+        <label htmlFor={`project-${project.project_id}`} className="text-sm">
+          {project.name}
+        </label>
+      </div>
+    ))}
+  </div>
+)}
+
+    </div>
+
+    <DialogFooter className="mt-6 flex justify-between">
+      <DialogClose asChild>
+        <Button variant="outline" ref={inviteCloseRef}>
+          Cancel
+        </Button>
+      </DialogClose>
+      <Button
+        onClick={handleSendInvite}
+        disabled={sendingInvite || selectedProjects.length === 0 || !inviteEmail}
+      >
+        {sendingInvite ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            Sending...
+          </>
+        ) : (
+          "Send Invite"
+        )}
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+
             <Dialog>
               <DialogTrigger asChild>
                 <Button variant="outline">New Project</Button>
