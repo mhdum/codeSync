@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEffect, useState } from "react";
+import SideBar from "@/components/SideBar";
 
 export default function SettingsPage() {
   const [name, setName] = useState("");
@@ -70,47 +71,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
-      <aside className="w-64 bg-white border-r">
-        <div className="p-4">
-          <h1 className="text-2xl font-bold text-gray-800">CodeCollab</h1>
-        </div>
-        <nav className="mt-4">
-          <ul className="space-y-2">
-            <li>
-              <Link href="/dashboard">
-                <Button variant="ghost" className="w-full justify-start">
-                  <FileCode className="mr-2 h-4 w-4" /> Dashboard
-                </Button>
-              </Link>
-            </li>
-            <li>
-              <Link href="/projects">
-                <Button variant="ghost" className="w-full justify-start">
-                  <Folder className="mr-2 h-4 w-4" /> Projects
-                </Button>
-              </Link>
-            </li>
-            <li>
-              <Link href="/collaborators">
-                <Button variant="ghost" className="w-full justify-start">
-                  <Users className="mr-2 h-4 w-4" /> Collaborators
-                </Button>
-              </Link>
-            </li>
-            <li>
-              <Link href="/settings">
-                <Button variant="default" className="w-full justify-start">
-                  <Settings className="mr-2 h-4 w-4" /> Settings
-                </Button>
-              </Link>
-            </li>
-          </ul>
-        </nav>
-      </aside>
-
-      {/* Main Content */}
+    
       <div className="flex-1 flex flex-col">
         {/* Header */}
         <header className="bg-white border-b p-4 flex justify-between items-center">
@@ -244,6 +205,6 @@ export default function SettingsPage() {
           </div>
         </main>
       </div>
-    </div>
+    
   );
 }
