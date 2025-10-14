@@ -15,7 +15,7 @@ const Navbar = () => {
           </Link>
         </span>
       </div>
-      <nav className="space-x-4">
+      <nav className="space-x-4 flex gap-2">
         <Button asChild>
           <Link href="/login">Sign In</Link>
         </Button>
