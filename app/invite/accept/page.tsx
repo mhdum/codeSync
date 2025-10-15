@@ -23,24 +23,34 @@ export default function AcceptInvitePage() {
           return;
         }
 
-        const invite = snap.data();
+const invite = snap.data();
 
-        if (invite.status === "accepted") {
-          setMessage("This invitation is already accepted.");
-          return;
-        }
+// Ensure invite has projects
+if (!invite.selectedProjects || invite.selectedProjects.length === 0) {
+  setMessage("Invalid invitation data.");
+  return;
+}
 
-        // 1️⃣ Mark invite accepted
-        await updateDoc(inviteRef, { status: "accepted" });
+// ✅ Compare logged-in email
+const loggedInEmail = localStorage.getItem("userEmail");
+if (!loggedInEmail || invite.email.toLowerCase() !== loggedInEmail.toLowerCase()) {
+  setMessage("❌ You are not authorized to accept this invitation.");
+  return;
+}
 
-        // 2️⃣ Add collaborator to project
-        const projectRef = doc(db, "projects", invite.projectId);
-        await updateDoc(projectRef, {
-          collaborators: arrayUnion(invite.email),
-        });
+// 1️⃣ Mark invite accepted
+await updateDoc(inviteRef, { status: "accepted" });
 
-        setMessage("🎉 Invitation accepted! You can now access the project.");
-      } catch (err) {
+// 2️⃣ Add collaborator to each project in selectedProjects
+for (const proj of invite.selectedProjects) {
+  if (!proj.projectId) continue; // skip invalid
+  const projectRef = doc(db, "projects", proj.projectId);
+  await updateDoc(projectRef, {
+    collaborators: arrayUnion(invite.email),
+  });
+}
+
+setMessage("🎉 Invitation accepted! You can now access the project.");      } catch (err) {
         console.error(err);
         setMessage("Error accepting invitation.");
       }
@@ -55,3 +65,4 @@ export default function AcceptInvitePage() {
     </div>
   );
 }
+
