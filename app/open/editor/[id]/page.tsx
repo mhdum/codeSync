@@ -33,8 +33,8 @@ export default function ProjectEditorPage() {
 
     const ydoc = new Y.Doc();
     const provider = new WebsocketProvider(
-      "wss://demos.yjs.dev/ws", // public demo WebSocket
-      `project-${fileId}`,
+      `wss://yjs-websocket-server-hfb8.onrender.com/collaboration/${fileId}`, // public demo WebSocket
+      "",
       ydoc
     );
 
