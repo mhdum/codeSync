@@ -14,6 +14,8 @@ import { Label } from "@/components/ui/label";
 import { signIn } from "next-auth/react";
 
 import Link from "next/link";
+import { db } from "@/lib/firebaseConfig";
+import { doc, getDoc, updateDoc, arrayUnion } from "firebase/firestore";
 
 
 interface LoginForm{
@@ -34,7 +36,44 @@ export function LoginForm() {
       callbackUrl: "/"
     })
     if (res?.error) return alert(res.error);
-    window.location.href = "/dashboard"; // manually redirect after session is set
+    // After successful login
+const pendingInvite = localStorage.getItem("pendingInvite");
+
+if (pendingInvite) {
+  // Remove from localStorage
+  localStorage.removeItem("pendingInvite");
+
+  try {
+    const inviteRef = doc(db, "collaborationInvites", pendingInvite);
+    const snap = await getDoc(inviteRef);
+    
+    if (snap.exists()) {
+      const invite = snap.data();
+
+      // Add logged-in user to projects
+      for (const proj of invite.selectedProjects) {
+        if (!proj.projectId) continue;
+        const projectRef = doc(db, "projects", proj.projectId);
+        await updateDoc(projectRef, {
+          collaborators: arrayUnion(email), // logged-in email
+        });
+      }
+
+      // Mark invite accepted
+      await updateDoc(inviteRef, { status: "accepted" });
+    }
+  } catch (err) {
+    console.error("Error processing pending invite", err);
+  }
+
+  // Finally redirect to dashboard
+  window.location.href = "/dashboard?refresh=true";
+} else {
+  // Normal login
+  window.location.href = "/dashboard";
+}
+
+    // window.location.href = "/dashboard"; // manually redirect after session is set
 
   }
 

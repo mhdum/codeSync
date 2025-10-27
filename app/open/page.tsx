@@ -23,6 +23,9 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebaseConfig"; // 🔥 ensure firebase is initialized
 
+import { useToast } from "@/hooks/use-toast";
+
+
 interface PistonRuntime {
   language: string;
   version: string;
@@ -49,6 +52,8 @@ export default function ProjectPage() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [files, setFiles] = useState<ProjectFile[]>([]);
+
+  const { toast } = useToast();
 
   // Fetch supported runtimes
   useEffect(() => {
@@ -120,16 +125,36 @@ export default function ProjectPage() {
         updatedAt: serverTimestamp(),
       });
 
+      // console.log("File created with ID:", docRef.id);
+
+      // // Navigate to editor page
+      // router.push(
+      //   `/open/editor/new?filename=${encodeURIComponent(
+      //     fileName
+      //   )}&extension=${encodeURIComponent(fileExtension)}&fileId=${
+      //     docRef.id
+      //   }&projectId=${projectId}`
+      // );
+
       console.log("File created with ID:", docRef.id);
 
-      // Navigate to editor page
-      router.push(
-        `/open/editor/new?filename=${encodeURIComponent(
-          fileName
-        )}&extension=${encodeURIComponent(fileExtension)}&fileId=${
-          docRef.id
-        }&projectId=${projectId}`
-      );
+router.push(
+  `/open/editor/new?filename=${encodeURIComponent(
+    fileName
+  )}&extension=${encodeURIComponent(fileExtension)}&fileId=${
+    docRef.id
+  }&projectId=${projectId}`
+);
+
+setTimeout(() => {
+  toast({
+    title: "File Created 🎉",
+    description: `${fileName}.${fileExtension} created successfully!`,
+    duration: 3000,
+  });
+}, 200);
+      
+      
     } catch (err) {
       console.error("Error creating file:", err);
       alert("Failed to create file.");

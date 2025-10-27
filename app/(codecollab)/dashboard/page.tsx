@@ -20,6 +20,7 @@ import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import SideBar from "@/components/SideBar";
+import { useSearchParams } from "next/navigation";
 
 interface Project {
   name: string;
@@ -46,7 +47,7 @@ export default function Dashboard() {
 
   const [ownedProjects, setOwnedProjects] = useState<Project[]>([]);
 
-
+  const searchParams = useSearchParams();
   // Store user email locally
   useEffect(() => {
     if (status === "authenticated" && session?.user?.email) {
@@ -56,11 +57,48 @@ export default function Dashboard() {
 
   // Fetch profile and projects
   useEffect(() => {
+
     const email = localStorage.getItem("userEmail");
     if (!email) return;
+    const loadAll = async () => {
+      setLoadingProjects(true);
+      try {
+        const [owned, collaborated] = await Promise.all([fetchOwned(), fetchCollaborated()]);
+
+        // save owner-only list
+        setOwnedProjects(owned);
+
+        // dedupe by project_id (keep owner version if duplicate)
+        const map = new Map<string, any>();
+        [...owned, ...collaborated].forEach((p) => {
+          if (!p.project_id) return; // skip invalid
+          if (!map.has(p.project_id)) map.set(p.project_id, p);
+          else {
+            const existing = map.get(p.project_id);
+            if (existing.role !== "owner" && p.role === "owner") map.set(p.project_id, p);
+          }
+        });
+        const merged = Array.from(map.values());
+        console.log("Merged projects:", merged);
+        setProjects(merged);
+      } catch (e) {
+        console.error("loadAll error", e);
+      } finally {
+        setLoadingProjects(false);
+      }
+    };
+
+    const refresh = searchParams.get("refresh");
+    loadAll(); // ✅ run even if already mounted
+
+    if (refresh) {
+      console.log("Force refreshing dashboard data after invite accept");
+    }
+
     const fetchProfile = async () => {
 
       if (!email) return;
+      
 
       try {
         const res = await fetch(`/api/profile/get?email=${encodeURIComponent(email)}`);
@@ -151,40 +189,13 @@ export default function Dashboard() {
       }
     };
 
-    const loadAll = async () => {
-      setLoadingProjects(true);
-      try {
-        const [owned, collaborated] = await Promise.all([fetchOwned(), fetchCollaborated()]);
-
-        // save owner-only list
-        setOwnedProjects(owned);
-
-        // dedupe by project_id (keep owner version if duplicate)
-        const map = new Map<string, any>();
-        [...owned, ...collaborated].forEach((p) => {
-          if (!p.project_id) return; // skip invalid
-          if (!map.has(p.project_id)) map.set(p.project_id, p);
-          else {
-            const existing = map.get(p.project_id);
-            if (existing.role !== "owner" && p.role === "owner") map.set(p.project_id, p);
-          }
-        });
-        const merged = Array.from(map.values());
-        console.log("Merged projects:", merged);
-        setProjects(merged);
-      } catch (e) {
-        console.error("loadAll error", e);
-      } finally {
-        setLoadingProjects(false);
-      }
-    };
 
 
     loadAll();
 
     fetchProfile();
     // fetchProjects();
-  }, []);
+  }, [searchParams]);
 
   if (status === "loading") return <p>Loading...</p>;
   if (status === "unauthenticated")
@@ -225,11 +236,13 @@ export default function Dashboard() {
         createdAt: new Date(),
         project_id: json.project_id,
       };
-      setProjects((prev) => [newProj, ...prev]);
+      // ✅ Update both project lists
+    setProjects((prev) => [newProj, ...prev]);
+    setOwnedProjects((prev) => [newProj, ...prev]); // <---- add this line
 
-      setProjectName("Project 1");
-      dialogCloseRef.current?.click();
-      alert(`Project "${trimmed}" created successfully!`);
+    setProjectName("Project 1");
+    dialogCloseRef.current?.click();
+    alert(`Project "${trimmed}" created successfully!`);
     } catch (err) {
       console.error("Create project error:", err);
       alert("Error creating project. Check console and server logs.");
