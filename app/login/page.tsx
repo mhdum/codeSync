@@ -15,28 +15,43 @@ import { signIn } from "next-auth/react";
 
 import Link from "next/link";
 
-
-interface LoginForm{
-  email:string
-  password:string
+interface LoginForm {
+  email: string;
+  password: string;
 }
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-    const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const res = await signIn("credentials", {
-      redirect: false,
-      email: email,
-      password: password,
-      callbackUrl: "/"
-    })
-    if (res?.error) return alert(res.error);
-    window.location.href = "/dashboard"; // manually redirect after session is set
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  }
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error);
+        return;
+      }
+
+      // Optionally save JWT for future requests
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+
+      alert("Login successful!");
+      window.location.href = "/dashboard";
+    } catch (err) {
+      console.error("Login failed:", err);
+      alert("Something went wrong");
+    }
+  };
 
   const handleGoogleLogin = async () => {
     await signIn("google", { callbackUrl: "/dashboard" }); // Redirects to homepage

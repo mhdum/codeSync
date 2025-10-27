@@ -40,15 +40,19 @@ export default function Dashboard() {
   const [sendingInvite, setSendingInvite] = useState(false);
   const inviteCloseRef = useRef<HTMLButtonElement>(null);
 
-  const [userProfile, setUserProfile] = useState<{ name?: string; email?: string; image?: string } | null>(null);
+  const [userProfile, setUserProfile] = useState<{
+    name?: string;
+    email?: string;
+    image?: string;
+  } | null>(null);
 
   const [selectedProjects, setSelectedProjects] = useState<Project[]>([]);
 
   const [ownedProjects, setOwnedProjects] = useState<Project[]>([]);
 
-
   // Store user email locally
   useEffect(() => {
+    console.log("Session status:", status, "Session data:", session);
     if (status === "authenticated" && session?.user?.email) {
       localStorage.setItem("userEmail", session.user.email);
     }
@@ -59,11 +63,12 @@ export default function Dashboard() {
     const email = localStorage.getItem("userEmail");
     if (!email) return;
     const fetchProfile = async () => {
-
       if (!email) return;
 
       try {
-        const res = await fetch(`/api/profile/get?email=${encodeURIComponent(email)}`);
+        const res = await fetch(
+          `/api/profile/get?email=${encodeURIComponent(email)}`
+        );
         if (!res.ok) return;
         const data = await res.json();
         setUserProfile(data);
@@ -106,7 +111,9 @@ export default function Dashboard() {
 
     const fetchOwned = async () => {
       try {
-        const res = await fetch(`/api/project/get?ownerid=${encodeURIComponent(email)}`);
+        const res = await fetch(
+          `/api/project/get?ownerid=${encodeURIComponent(email)}`
+        );
         if (!res.ok) {
           console.warn("project/get failed", res.status);
           return [];
@@ -116,7 +123,11 @@ export default function Dashboard() {
           project_id: p.project_id ?? p.id ?? null,
           name: p.name ?? "Untitled",
           ownerId: p.ownerid ?? email,
-          createdAt: p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : (p.createdAt ? new Date(p.createdAt) : new Date()),
+          createdAt: p.createdAt?.seconds
+            ? new Date(p.createdAt.seconds * 1000)
+            : p.createdAt
+            ? new Date(p.createdAt)
+            : new Date(),
           role: "owner",
         }));
         console.log("Owned projects:", list);
@@ -129,7 +140,9 @@ export default function Dashboard() {
 
     const fetchCollaborated = async () => {
       try {
-        const res = await fetch(`/api/collaborations/get?email=${encodeURIComponent(email)}`);
+        const res = await fetch(
+          `/api/collaborations/get?email=${encodeURIComponent(email)}`
+        );
         if (!res.ok) {
           console.warn("collaborations/get failed", res.status);
           return [];
@@ -154,7 +167,10 @@ export default function Dashboard() {
     const loadAll = async () => {
       setLoadingProjects(true);
       try {
-        const [owned, collaborated] = await Promise.all([fetchOwned(), fetchCollaborated()]);
+        const [owned, collaborated] = await Promise.all([
+          fetchOwned(),
+          fetchCollaborated(),
+        ]);
 
         // save owner-only list
         setOwnedProjects(owned);
@@ -166,7 +182,8 @@ export default function Dashboard() {
           if (!map.has(p.project_id)) map.set(p.project_id, p);
           else {
             const existing = map.get(p.project_id);
-            if (existing.role !== "owner" && p.role === "owner") map.set(p.project_id, p);
+            if (existing.role !== "owner" && p.role === "owner")
+              map.set(p.project_id, p);
           }
         });
         const merged = Array.from(map.values());
@@ -178,7 +195,6 @@ export default function Dashboard() {
         setLoadingProjects(false);
       }
     };
-
 
     loadAll();
 
@@ -207,7 +223,8 @@ export default function Dashboard() {
     setError("");
 
     const ownerid = localStorage.getItem("userEmail");
-    if (!ownerid) return alert("No owner ID found. Make sure you're logged in.");
+    if (!ownerid)
+      return alert("No owner ID found. Make sure you're logged in.");
 
     setIsSaving(true);
     try {
@@ -241,7 +258,8 @@ export default function Dashboard() {
   // ✉️ Send Invite
   const handleSendInvite = async () => {
     if (!inviteEmail) return alert("Please enter an email address.");
-    if (selectedProjects.length === 0) return alert("Please select at least one project.");
+    if (selectedProjects.length === 0)
+      return alert("Please select at least one project.");
 
     const senderId = localStorage.getItem("userEmail");
     if (!senderId) return alert("Missing sender info.");
@@ -279,7 +297,6 @@ export default function Dashboard() {
   };
 
   return (
-
     <div className="flex-1 flex flex-col">
       {/* Header */}
       <header className="bg-white border-b p-4 flex justify-between items-center">
@@ -297,7 +314,8 @@ export default function Dashboard() {
               <DialogHeader>
                 <DialogTitle>Send Collaboration Invite</DialogTitle>
                 <DialogDescription>
-                  Type the email of the person you want to invite and select the project(s)
+                  Type the email of the person you want to invite and select the
+                  project(s)
                 </DialogDescription>
               </DialogHeader>
 
@@ -318,34 +336,45 @@ export default function Dashboard() {
                     <span>Loading projects...</span>
                   </div>
                 ) : ownedProjects.length === 0 ? (
-                  <p className="text-sm text-gray-500 mt-2">No projects available to invite collaborators to.</p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    No projects available to invite collaborators to.
+                  </p>
                 ) : (
                   <div className="space-y-2 mt-2 max-h-60 overflow-y-auto">
                     {ownedProjects.map((project) => (
-                      <div key={project.project_id} className="flex items-center gap-2">
+                      <div
+                        key={project.project_id}
+                        className="flex items-center gap-2"
+                      >
                         <input
                           type="checkbox"
                           id={`project-${project.project_id}`}
-                          checked={selectedProjects.some((p) => p.project_id === project.project_id)}
+                          checked={selectedProjects.some(
+                            (p) => p.project_id === project.project_id
+                          )}
                           onChange={(e) => {
                             if (e.target.checked) {
                               setSelectedProjects((prev) => [...prev, project]);
                             } else {
                               setSelectedProjects((prev) =>
-                                prev.filter((p) => p.project_id !== project.project_id)
+                                prev.filter(
+                                  (p) => p.project_id !== project.project_id
+                                )
                               );
                             }
                           }}
                           className="w-4 h-4"
                         />
-                        <label htmlFor={`project-${project.project_id}`} className="text-sm">
+                        <label
+                          htmlFor={`project-${project.project_id}`}
+                          className="text-sm"
+                        >
                           {project.name}
                         </label>
                       </div>
                     ))}
                   </div>
                 )}
-
               </div>
 
               <DialogFooter className="mt-6 flex justify-between">
@@ -356,7 +385,11 @@ export default function Dashboard() {
                 </DialogClose>
                 <Button
                   onClick={handleSendInvite}
-                  disabled={sendingInvite || selectedProjects.length === 0 || !inviteEmail}
+                  disabled={
+                    sendingInvite ||
+                    selectedProjects.length === 0 ||
+                    !inviteEmail
+                  }
                 >
                   {sendingInvite ? (
                     <>
@@ -379,7 +412,9 @@ export default function Dashboard() {
               <form onSubmit={handleSubmit}>
                 <DialogHeader>
                   <DialogTitle>Create New Project</DialogTitle>
-                  <DialogDescription>Add details to make a new project</DialogDescription>
+                  <DialogDescription>
+                    Add details to make a new project
+                  </DialogDescription>
                 </DialogHeader>
 
                 <div className="grid gap-4 mt-4">
@@ -392,7 +427,9 @@ export default function Dashboard() {
                       onChange={(e) => setProjectName(e.target.value)}
                       placeholder="Enter project name"
                     />
-                    {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+                    {error && (
+                      <p className="text-red-500 text-sm mt-1">{error}</p>
+                    )}
                   </div>
                 </div>
 
@@ -416,7 +453,6 @@ export default function Dashboard() {
               </form>
             </DialogContent>
           </Dialog>
-
 
           <Button
             variant="destructive"
@@ -455,13 +491,17 @@ export default function Dashboard() {
                   ))}
                 </div>
               ) : projects.length === 0 ? (
-                <p className="text-muted-foreground">No projects created yet.</p>
+                <p className="text-muted-foreground">
+                  No projects created yet.
+                </p>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {projects.map((project, index) => (
                     <Card key={project.project_id ?? index}>
                       <CardHeader>
-                        <CardTitle className="text-lg">{project.name}</CardTitle>
+                        <CardTitle className="text-lg">
+                          {project.name}
+                        </CardTitle>
                       </CardHeader>
                       <CardContent>
                         <p className="text-sm text-gray-500">
@@ -472,8 +512,7 @@ export default function Dashboard() {
                             pathname: "/open",
                             query: {
                               projectId: project.project_id, // ✅ pass the project id
-                              filename: project.name,        // (optional) also pass filename
-
+                              filename: project.name, // (optional) also pass filename
                             },
                           }}
                         >

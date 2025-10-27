@@ -42,36 +42,24 @@ function SignUp() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (password !== confirmPassword) {
-      setPasswordError("Passwords do not match");
-      return;
-    }
-    setPasswordError("");
-
     try {
-      // Check if user already exists
-      const q = query(collection(db, "users"), where("email", "==", email));
-      const querySnapshot = await getDocs(q);
+      const res = await fetch("/api/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, confirmPassword }),
+      });
 
-      if (!querySnapshot.empty) {
-        alert("Email already registered");
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error);
         return;
       }
 
-      // Hash password
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      // Save new user to Firestore
-      await setDoc(doc(db, "users", email.toLowerCase()), {
-        email: email.toLowerCase(),
-        password: hashedPassword,
-        createdAt: new Date(),
-      });
-
-      alert("User registered! Now login.");
-    } catch (error) {
-      console.error("Error adding user: ", error);
-      alert("Failed to register user. Try again.");
+      alert("User registered! You can now log in.");
+    } catch (err) {
+      console.error("Signup failed:", err);
+      alert("Something went wrong");
     }
   };
 
