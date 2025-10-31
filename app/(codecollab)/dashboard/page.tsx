@@ -1,8 +1,33 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Bar,
+  BarChart,
+  Pie,
+  PieChart,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  Legend,
+} from "recharts";
+import {
+  ChartContainer,
+  ChartTooltipContent,
+  ChartTooltip,
+} from "@/components/ui/chart";
+
 import {
   Dialog,
   DialogClose,
@@ -21,11 +46,23 @@ import { useSession, signOut } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import SideBar from "@/components/SideBar";
 import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 interface Project {
   name: string;
   createdAt: Date;
   project_id?: string;
+}
+
+type ProjectName = "Project A" | "Project B" | "Project C" | "Project D";
+
+interface ActivityDay {
+  day: string;
+  "Project A": number;
+  "Project B": number;
+  "Project C": number;
+  "Project D": number;
+  [key: string]: string | number;
 }
 
 export default function Dashboard() {
@@ -41,7 +78,11 @@ export default function Dashboard() {
   const [sendingInvite, setSendingInvite] = useState(false);
   const inviteCloseRef = useRef<HTMLButtonElement>(null);
 
-  const [userProfile, setUserProfile] = useState<{ name?: string; email?: string; image?: string } | null>(null);
+  const [userProfile, setUserProfile] = useState<{
+    name?: string;
+    email?: string;
+    image?: string;
+  } | null>(null);
 
   const [selectedProjects, setSelectedProjects] = useState<Project[]>([]);
 
@@ -57,13 +98,15 @@ export default function Dashboard() {
 
   // Fetch profile and projects
   useEffect(() => {
-
     const email = localStorage.getItem("userEmail");
     if (!email) return;
     const loadAll = async () => {
       setLoadingProjects(true);
       try {
-        const [owned, collaborated] = await Promise.all([fetchOwned(), fetchCollaborated()]);
+        const [owned, collaborated] = await Promise.all([
+          fetchOwned(),
+          fetchCollaborated(),
+        ]);
 
         // save owner-only list
         setOwnedProjects(owned);
@@ -75,7 +118,8 @@ export default function Dashboard() {
           if (!map.has(p.project_id)) map.set(p.project_id, p);
           else {
             const existing = map.get(p.project_id);
-            if (existing.role !== "owner" && p.role === "owner") map.set(p.project_id, p);
+            if (existing.role !== "owner" && p.role === "owner")
+              map.set(p.project_id, p);
           }
         });
         const merged = Array.from(map.values());
@@ -96,12 +140,12 @@ export default function Dashboard() {
     }
 
     const fetchProfile = async () => {
-
       if (!email) return;
-      
 
       try {
-        const res = await fetch(`/api/profile/get?email=${encodeURIComponent(email)}`);
+        const res = await fetch(
+          `/api/profile/get?email=${encodeURIComponent(email)}`
+        );
         if (!res.ok) return;
         const data = await res.json();
         setUserProfile(data);
@@ -144,7 +188,9 @@ export default function Dashboard() {
 
     const fetchOwned = async () => {
       try {
-        const res = await fetch(`/api/project/get?ownerid=${encodeURIComponent(email)}`);
+        const res = await fetch(
+          `/api/project/get?ownerid=${encodeURIComponent(email)}`
+        );
         if (!res.ok) {
           console.warn("project/get failed", res.status);
           return [];
@@ -154,7 +200,11 @@ export default function Dashboard() {
           project_id: p.project_id ?? p.id ?? null,
           name: p.name ?? "Untitled",
           ownerId: p.ownerid ?? email,
-          createdAt: p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : (p.createdAt ? new Date(p.createdAt) : new Date()),
+          createdAt: p.createdAt?.seconds
+            ? new Date(p.createdAt.seconds * 1000)
+            : p.createdAt
+            ? new Date(p.createdAt)
+            : new Date(),
           role: "owner",
         }));
         console.log("Owned projects:", list);
@@ -167,7 +217,9 @@ export default function Dashboard() {
 
     const fetchCollaborated = async () => {
       try {
-        const res = await fetch(`/api/collaborations/get?email=${encodeURIComponent(email)}`);
+        const res = await fetch(
+          `/api/collaborations/get?email=${encodeURIComponent(email)}`
+        );
         if (!res.ok) {
           console.warn("collaborations/get failed", res.status);
           return [];
@@ -188,8 +240,6 @@ export default function Dashboard() {
         return [];
       }
     };
-
-
 
     loadAll();
 
@@ -218,7 +268,8 @@ export default function Dashboard() {
     setError("");
 
     const ownerid = localStorage.getItem("userEmail");
-    if (!ownerid) return alert("No owner ID found. Make sure you're logged in.");
+    if (!ownerid)
+      return alert("No owner ID found. Make sure you're logged in.");
 
     setIsSaving(true);
     try {
@@ -237,12 +288,12 @@ export default function Dashboard() {
         project_id: json.project_id,
       };
       // ✅ Update both project lists
-    setProjects((prev) => [newProj, ...prev]);
-    setOwnedProjects((prev) => [newProj, ...prev]); // <---- add this line
+      setProjects((prev) => [newProj, ...prev]);
+      setOwnedProjects((prev) => [newProj, ...prev]); // <---- add this line
 
-    setProjectName("Project 1");
-    dialogCloseRef.current?.click();
-    alert(`Project "${trimmed}" created successfully!`);
+      setProjectName("Project 1");
+      dialogCloseRef.current?.click();
+      alert(`Project "${trimmed}" created successfully!`);
     } catch (err) {
       console.error("Create project error:", err);
       alert("Error creating project. Check console and server logs.");
@@ -254,7 +305,8 @@ export default function Dashboard() {
   // ✉️ Send Invite
   const handleSendInvite = async () => {
     if (!inviteEmail) return alert("Please enter an email address.");
-    if (selectedProjects.length === 0) return alert("Please select at least one project.");
+    if (selectedProjects.length === 0)
+      return alert("Please select at least one project.");
 
     const senderId = localStorage.getItem("userEmail");
     if (!senderId) return alert("Missing sender info.");
@@ -291,14 +343,132 @@ export default function Dashboard() {
     }
   };
 
-  return (
+  const activityHeatmapData: ActivityDay[] = [
+    {
+      day: "Mon",
+      "Project A": 5,
+      "Project B": 2,
+      "Project C": 0,
+      "Project D": 3,
+    },
+    {
+      day: "Tue",
+      "Project A": 3,
+      "Project B": 1,
+      "Project C": 2,
+      "Project D": 0,
+    },
+    {
+      day: "Wed",
+      "Project A": 4,
+      "Project B": 5,
+      "Project C": 3,
+      "Project D": 2,
+    },
+    {
+      day: "Thu",
+      "Project A": 6,
+      "Project B": 3,
+      "Project C": 1,
+      "Project D": 4,
+    },
+    {
+      day: "Fri",
+      "Project A": 2,
+      "Project B": 0,
+      "Project C": 4,
+      "Project D": 3,
+    },
+    {
+      day: "Sat",
+      "Project A": 1,
+      "Project B": 2,
+      "Project C": 2,
+      "Project D": 1,
+    },
+    {
+      day: "Sun",
+      "Project A": 0,
+      "Project B": 3,
+      "Project C": 1,
+      "Project D": 2,
+    },
+    {
+      day: "Mon",
+      "Project A": 4,
+      "Project B": 4,
+      "Project C": 2,
+      "Project D": 3,
+    },
+    {
+      day: "Tue",
+      "Project A": 2,
+      "Project B": 5,
+      "Project C": 3,
+      "Project D": 4,
+    },
+    {
+      day: "Wed",
+      "Project A": 5,
+      "Project B": 3,
+      "Project C": 4,
+      "Project D": 2,
+    },
+    {
+      day: "Thu",
+      "Project A": 6,
+      "Project B": 4,
+      "Project C": 1,
+      "Project D": 5,
+    },
+    {
+      day: "Fri",
+      "Project A": 3,
+      "Project B": 1,
+      "Project C": 2,
+      "Project D": 0,
+    },
+    {
+      day: "Sat",
+      "Project A": 2,
+      "Project B": 0,
+      "Project C": 3,
+      "Project D": 1,
+    },
+    {
+      day: "Sun",
+      "Project A": 1,
+      "Project B": 3,
+      "Project C": 1,
+      "Project D": 4,
+    },
+  ];
 
+  function getColor(intensity: number) {
+    const max = 6; // maximum possible activity value
+    const scale = intensity / max;
+    if (scale === 0) return "hsl(var(--muted))";
+    return `hsl(var(--chart-1) / ${0.3 + scale * 0.7})`;
+  }
+
+  const projectLists: ProjectName[] = [
+    "Project A",
+    "Project B",
+    "Project C",
+    "Project D",
+  ];
+
+  const router = useRouter();
+
+  return (
     <div className="flex-1 flex flex-col">
       {/* Header */}
-      <header className="bg-white border-b p-4 flex justify-between items-center">
-        <h2 className="text-xl font-semibold">Dashboard</h2>
+      <header className="bg-white dark:bg-gray-900 border-b dark:border-gray-700 p-4 flex justify-between items-center">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+          Dashboard
+        </h2>
         <div className="flex items-center space-x-4">
-          {/* 🔹 Send Invite Dialog */}
+          {/* Send Invite Dialog */}
           <Dialog>
             <DialogTrigger asChild>
               <Button variant="default" className="flex items-center gap-2">
@@ -310,7 +480,8 @@ export default function Dashboard() {
               <DialogHeader>
                 <DialogTitle>Send Collaboration Invite</DialogTitle>
                 <DialogDescription>
-                  Type the email of the person you want to invite and select the project(s)
+                  Type the email of the person you want to invite and select the
+                  project(s)
                 </DialogDescription>
               </DialogHeader>
 
@@ -331,34 +502,45 @@ export default function Dashboard() {
                     <span>Loading projects...</span>
                   </div>
                 ) : ownedProjects.length === 0 ? (
-                  <p className="text-sm text-gray-500 mt-2">No projects available to invite collaborators to.</p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    No projects available to invite collaborators to.
+                  </p>
                 ) : (
                   <div className="space-y-2 mt-2 max-h-60 overflow-y-auto">
                     {ownedProjects.map((project) => (
-                      <div key={project.project_id} className="flex items-center gap-2">
+                      <div
+                        key={project.project_id}
+                        className="flex items-center gap-2"
+                      >
                         <input
                           type="checkbox"
                           id={`project-${project.project_id}`}
-                          checked={selectedProjects.some((p) => p.project_id === project.project_id)}
+                          checked={selectedProjects.some(
+                            (p) => p.project_id === project.project_id
+                          )}
                           onChange={(e) => {
                             if (e.target.checked) {
                               setSelectedProjects((prev) => [...prev, project]);
                             } else {
                               setSelectedProjects((prev) =>
-                                prev.filter((p) => p.project_id !== project.project_id)
+                                prev.filter(
+                                  (p) => p.project_id !== project.project_id
+                                )
                               );
                             }
                           }}
                           className="w-4 h-4"
                         />
-                        <label htmlFor={`project-${project.project_id}`} className="text-sm">
+                        <label
+                          htmlFor={`project-${project.project_id}`}
+                          className="text-sm"
+                        >
                           {project.name}
                         </label>
                       </div>
                     ))}
                   </div>
                 )}
-
               </div>
 
               <DialogFooter className="mt-6 flex justify-between">
@@ -369,7 +551,11 @@ export default function Dashboard() {
                 </DialogClose>
                 <Button
                   onClick={handleSendInvite}
-                  disabled={sendingInvite || selectedProjects.length === 0 || !inviteEmail}
+                  disabled={
+                    sendingInvite ||
+                    selectedProjects.length === 0 ||
+                    !inviteEmail
+                  }
                 >
                   {sendingInvite ? (
                     <>
@@ -392,7 +578,9 @@ export default function Dashboard() {
               <form onSubmit={handleSubmit}>
                 <DialogHeader>
                   <DialogTitle>Create New Project</DialogTitle>
-                  <DialogDescription>Add details to make a new project</DialogDescription>
+                  <DialogDescription>
+                    Add details to make a new project
+                  </DialogDescription>
                 </DialogHeader>
 
                 <div className="grid gap-4 mt-4">
@@ -405,7 +593,9 @@ export default function Dashboard() {
                       onChange={(e) => setProjectName(e.target.value)}
                       placeholder="Enter project name"
                     />
-                    {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+                    {error && (
+                      <p className="text-red-500 text-sm mt-1">{error}</p>
+                    )}
                   </div>
                 </div>
 
@@ -430,7 +620,6 @@ export default function Dashboard() {
             </DialogContent>
           </Dialog>
 
-
           <Button
             variant="destructive"
             onClick={async () => {
@@ -448,12 +637,184 @@ export default function Dashboard() {
       </header>
 
       {/* Dashboard Content */}
-      <main className="flex-1 p-6 overflow-auto">
+      <main className="flex-1 p-6 overflow-auto bg-gray-50 dark:bg-gray-950">
         <div className="grid gap-6">
-          {/* Recent Projects */}
           <Card>
             <CardHeader>
-              <CardTitle>Recent Projects</CardTitle>
+              <CardTitle>Project Statistics</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Project Completion Status */}
+                <Card
+                  onClick={() => router.push("/projectDetails/status")}
+                  className="cursor-pointer transition-transform hover:scale-[1.02] "
+                >
+                  <CardHeader>
+                    <CardTitle className="text-lg">
+                      Project Completion Status
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="h-[260px] flex justify-center items-center">
+                    <ChartContainer
+                      config={{
+                        completed: {
+                          label: "Completed",
+                          color: "hsl(var(--chart-1))",
+                        },
+                        nonCompleted: {
+                          label: "Non-Completed",
+                          color: "hsl(var(--chart-2))",
+                        },
+                      }}
+                      className="w-full h-full"
+                    >
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={[
+                              {
+                                name: "Completed",
+                                value: 70,
+                                fill: "var(--color-completed)",
+                              },
+                              {
+                                name: "Non-Completed",
+                                value: 30,
+                                fill: "var(--color-nonCompleted)",
+                              },
+                            ]}
+                            dataKey="value"
+                            nameKey="name"
+                            innerRadius="60%"
+                            outerRadius="80%"
+                            paddingAngle={5}
+                          />
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </ChartContainer>
+                  </CardContent>
+                </Card>
+
+                {/* Languages Used */}
+                <Link href="/projectDetails/languages" className="block">
+                  <Card className="transition-transform hover:scale-[1.02] cursor-pointer">
+                    <CardHeader>
+                      <CardTitle className="text-lg">Languages Used</CardTitle>
+                    </CardHeader>
+                    <CardContent className="h-[260px] flex justify-center items-center">
+                      <ChartContainer
+                        config={{
+                          java: { label: "Java", color: "hsl(var(--chart-1))" },
+                          c: { label: "C", color: "hsl(var(--chart-2))" },
+                          cpp: { label: "C++", color: "hsl(var(--chart-3))" },
+                          python: {
+                            label: "Python",
+                            color: "hsl(var(--chart-4))",
+                          },
+                          others: {
+                            label: "Others",
+                            color: "hsl(var(--chart-5))",
+                          },
+                        }}
+                        className="w-full h-full"
+                      >
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={[
+                                {
+                                  name: "Java",
+                                  value: 20,
+                                  fill: "var(--color-java)",
+                                },
+                                {
+                                  name: "C",
+                                  value: 15,
+                                  fill: "var(--color-c)",
+                                },
+                                {
+                                  name: "C++",
+                                  value: 10,
+                                  fill: "var(--color-cpp)",
+                                },
+                                {
+                                  name: "Python",
+                                  value: 30,
+                                  fill: "var(--color-python)",
+                                },
+                                {
+                                  name: "Others",
+                                  value: 25,
+                                  fill: "var(--color-others)",
+                                },
+                              ]}
+                              dataKey="value"
+                              nameKey="name"
+                              outerRadius="80%"
+                              labelLine={false}
+                              label={({ name, percent }) =>
+                                `${name} ${(percent * 100).toFixed(0)}%`
+                              }
+                            />
+                            <ChartTooltip content={<ChartTooltipContent />} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </ChartContainer>
+                    </CardContent>
+                  </Card>
+                </Link>
+
+                <Link href="/projectDetails/collaborators" className="block">
+                  <Card className="transition-transform hover:scale-[1.02] cursor-pointer">
+                    <CardHeader>
+                      <CardTitle className="text-lg">
+                        Contribution Activity (Last 14 Days)
+                      </CardTitle>
+                      <CardDescription>
+                        Commit frequency heatmap across all projects
+                      </CardDescription>
+                    </CardHeader>
+
+                    <CardContent className="h-[260px] flex items-center justify-center">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <div className="grid grid-cols-[repeat(14,1fr)] gap-[4px] w-full h-full">
+                          {activityHeatmapData.map((dayData, dayIndex) => (
+                            <div
+                              key={dayIndex}
+                              className="flex flex-col gap-[4px]"
+                            >
+                              {projectLists.map((proj) => (
+                                <div
+                                  key={proj}
+                                  title={`${proj}: ${dayData[proj]} commits`}
+                                  className="rounded-sm"
+                                  style={{
+                                    backgroundColor: getColor(
+                                      dayData[proj] as number
+                                    ),
+                                    width: "100%",
+                                    aspectRatio: "1 / 1",
+                                  }}
+                                />
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white dark:bg-gray-800 border dark:border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-gray-900 dark:text-gray-100">
+                Recent Projects
+              </CardTitle>
             </CardHeader>
             <CardContent>
               {loadingProjects ? (
@@ -468,13 +829,17 @@ export default function Dashboard() {
                   ))}
                 </div>
               ) : projects.length === 0 ? (
-                <p className="text-muted-foreground">No projects created yet.</p>
+                <p className="text-muted-foreground">
+                  No projects created yet.
+                </p>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {projects.map((project, index) => (
                     <Card key={project.project_id ?? index}>
                       <CardHeader>
-                        <CardTitle className="text-lg">{project.name}</CardTitle>
+                        <CardTitle className="text-lg">
+                          {project.name}
+                        </CardTitle>
                       </CardHeader>
                       <CardContent>
                         <p className="text-sm text-gray-500">
@@ -485,8 +850,7 @@ export default function Dashboard() {
                             pathname: "/open",
                             query: {
                               projectId: project.project_id, // ✅ pass the project id
-                              filename: project.name,        // (optional) also pass filename
-
+                              filename: project.name, // (optional) also pass filename
                             },
                           }}
                         >
