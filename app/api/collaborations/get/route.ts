@@ -1,27 +1,26 @@
-// app/api/collaborations/get/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/firebaseConfig";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { adminDb } from "@/lib/firebaseAdmin";
 
 export async function GET(req: NextRequest) {
   try {
     const email = req.nextUrl.searchParams.get("email");
     if (!email) return NextResponse.json({ projects: [] });
 
-    const q = query(
-      collection(db, "collaborationInvites"),
-      where("status", "==", "accepted"),
-      where("email", "==", email)
-    );
+    // 1️⃣ Query accepted collaboration invites for this email
+    const snapshot = await adminDb
+      .collection("collaborationInvites")
+      .where("status", "==", "accepted")
+      .where("email", "==", email)
+      .get();
 
-    const snapshot = await getDocs(q);
     const collaboratedProjects: any[] = [];
 
+    // 2️⃣ Loop through all invites and extract projects
     snapshot.forEach((docSnap) => {
       const data = docSnap.data();
       if (Array.isArray(data.selectedProjects)) {
         data.selectedProjects.forEach((proj: any) => {
-          // normalize createdAt -> ISO string
+          // Normalize createdAt to ISO string
           let createdAtIso: string | null = null;
           if (proj.createdAt?.seconds) {
             createdAtIso = new Date(proj.createdAt.seconds * 1000).toISOString();
@@ -34,22 +33,24 @@ export async function GET(req: NextRequest) {
           }
 
           collaboratedProjects.push({
-            // ensure consistent keys used on frontend
             project_id: proj.project_id ?? proj.id ?? null,
             name: proj.name ?? proj.projectName ?? "Untitled",
             ownerId: proj.ownerid ?? data.senderId ?? null,
             inviteId: docSnap.id,
             createdAt: createdAtIso,
-            // include raw proj if you want for debugging
             _raw: proj,
           });
         });
       }
     });
 
+    // 3️⃣ Return result
     return NextResponse.json({ projects: collaboratedProjects });
   } catch (error: any) {
-    console.error("collaborations/get error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("🔥 collaborations/get error:", error);
+    return NextResponse.json(
+      { error: error.message || "Failed to fetch collaborations" },
+      { status: 500 }
+    );
   }
 }

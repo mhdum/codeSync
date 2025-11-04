@@ -12,20 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import ParticlesBackground from "@/components/ParticlesBackGround";
-import { saveUser, getUserByEmail } from "@/lib/fakeDB";
 import { signIn } from "next-auth/react";
-import {
-  collection,
-  addDoc,
-  getDocs,
-  query,
-  where,
-  setDoc,
-  doc,
-} from "firebase/firestore";
-import { db } from "@/lib/firebaseConfig";
-import bcrypt from "bcryptjs";
 
 interface FormData {
   email: string;
@@ -38,6 +25,7 @@ function SignUp() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,31 +35,24 @@ function SignUp() {
       return;
     }
     setPasswordError("");
+    setLoading(true);
 
     try {
-      // Check if user already exists
-      const q = query(collection(db, "users"), where("email", "==", email));
-      const querySnapshot = await getDocs(q);
-
-      if (!querySnapshot.empty) {
-        alert("Email already registered");
-        return;
-      }
-
-      // Hash password
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      // Save new user to Firestore
-      await setDoc(doc(db, "users", email.toLowerCase()), {
-        email: email.toLowerCase(),
-        password: hashedPassword,
-        createdAt: new Date(),
+      const res = await fetch("/api/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
       });
 
-      alert("User registered! Now login.");
-    } catch (error) {
-      console.error("Error adding user: ", error);
-      alert("Failed to register user. Try again.");
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || "Signup failed");
+
+      alert("User registered successfully! Now login.");
+    } catch (err: any) {
+      alert(err.message || "Failed to register user");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -84,7 +65,7 @@ function SignUp() {
   };
 
   return (
-    <Card className="w-full max-w-sm sm:max-w-lg md:max-w-xl lg:max-w-sm mx-auto shadow-lg p-4">
+    <Card className="w-full max-w-sm mx-auto shadow-lg p-4">
       <CardHeader className="text-center">
         <CardTitle className="text-2xl font-bold">Welcome</CardTitle>
         <CardDescription>Create your account</CardDescription>
@@ -130,8 +111,8 @@ function SignUp() {
               <p className="text-red-500 text-sm mt-1">{passwordError}</p>
             )}
           </div>
-          <Button type="submit" className="w-full">
-            Sign Up
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "Registering..." : "Sign Up"}
           </Button>
         </form>
 
@@ -148,19 +129,7 @@ function SignUp() {
             variant="outline"
             className="flex-1 flex items-center justify-center gap-2"
             onClick={handleGoogleLogin}
-            aria-label="Sign up with Google"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 533.5 544.3"
-              className="h-5 w-5"
-              fill="currentColor"
-            >
-              <path d="M533.5 278.4c0-17.8-1.6-35-4.7-51.8H272.1v98h147.6c-6.4 34.8-26 64.4-55.7 84.1v69h89.8c52.5-48.3 82.7-119.5 82.7-199.3z" />
-              <path d="M272.1 544.3c75.2 0 138.5-24.9 184.7-67.5l-89.8-69c-24.9 16.8-56.7 26.7-94.9 26.7-72.9 0-134.7-49.2-156.8-115.2h-92.6v72.2c46.3 90.5 141.1 153.8 249.4 153.8z" />
-              <path d="M115.3 317.2c-10.2-30.8-10.2-64 0-94.8v-72.2H22.7c-41.2 81.7-41.2 178.6 0 260.3l92.6-72.2z" />
-              <path d="M272.1 107.7c39.5-.6 77.4 14 106.3 40.4l79.6-79.6C408.7 24.4 344.4 0 272.1 0 164 0 69.2 63.3 22.9 153.8l92.4 72.2c22.4-66.1 84.3-115.6 156.8-118.3z" />
-            </svg>
             Google
           </Button>
 
@@ -168,22 +137,13 @@ function SignUp() {
             variant="outline"
             className="flex-1 flex items-center justify-center gap-2"
             onClick={handleGithubLogin}
-            aria-label="Sign up with GitHub"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              className="h-5 w-5"
-              fill="currentColor"
-            >
-              <path d="M12 0C5.372 0 0 5.372 0 12c0 5.303 3.438 9.8 8.205 11.387.6.11.82-.26.82-.577 0-.285-.01-1.04-.015-2.04-3.338.726-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.757-1.333-1.757-1.09-.745.083-.73.083-.73 1.205.084 1.84 1.236 1.84 1.236 1.07 1.834 2.807 1.304 3.492.997.108-.775.418-1.305.76-1.605-2.665-.304-5.467-1.332-5.467-5.932 0-1.31.468-2.382 1.236-3.222-.124-.303-.536-1.523.117-3.176 0 0 1.008-.322 3.3 1.23a11.5 11.5 0 0 1 3-.404c1.02.005 2.047.138 3 .404 2.29-1.552 3.297-1.23 3.297-1.23.655 1.653.244 2.873.12 3.176.77.84 1.235 1.912 1.235 3.222 0 4.61-2.807 5.625-5.48 5.922.43.372.823 1.104.823 2.227 0 1.606-.015 2.896-.015 3.287 0 .32.217.694.825.576C20.565 21.796 24 17.298 24 12c0-6.628-5.373-12-12-12z" />
-            </svg>
             GitHub
           </Button>
         </div>
         <div className="mx-auto w-[80%] my-2 text-muted-foreground">
           Already have an account?
-          <Link href="login" className="px-2 underline text-primary">
+          <Link href="/login" className="px-2 underline text-primary">
             SignIn
           </Link>
         </div>

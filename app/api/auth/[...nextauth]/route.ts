@@ -1,12 +1,10 @@
-// app/api/auth/[...nextauth]/route.ts
 import NextAuth, { Account, Profile, User } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import FacebookProvider from "next-auth/providers/facebook";
 import GitHubProvider from "next-auth/providers/github";
 import bcrypt from "bcryptjs";
-import { doc, getDoc, setDoc } from "firebase/firestore";
-import { db } from "../../../../lib/firebaseConfig"; // make sure the path is correct
+import { adminDb } from "@/lib/firebaseAdmin"; // ✅ using Admin SDK
 
 export const authOptions = {
   providers: [
@@ -14,66 +12,68 @@ export const authOptions = {
       name: "Credentials",
       credentials: {
         email: { label: "Email", type: "text" },
-        password: { label: "Password", type: "password" }
+        password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-      if (!credentials?.email || !credentials?.password) return null;
+        if (!credentials?.email || !credentials?.password) return null;
 
-      const email = credentials.email.toLowerCase(); // normalize
-      const userDocRef = doc(db, "users", email);
-      const userDocSnap = await getDoc(userDocRef);
+        const email = credentials.email.toLowerCase();
 
-      if (!userDocSnap.exists()) throw new Error("No user found");
+        // ✅ Fetch user from Firestore via Admin SDK
+        const userRef = adminDb.collection("users").doc(email);
+        const userSnap = await userRef.get();
 
-      const userData = userDocSnap.data();
+        if (!userSnap.exists) throw new Error("No user found");
 
-      const isValid = await bcrypt.compare(credentials.password, userData.password);
-      if (!isValid) throw new Error("Invalid password");
+        const userData = userSnap.data();
+        const isValid = await bcrypt.compare(
+          credentials.password,
+          userData?.password
+        );
 
-      return { id: email, email };
-    }
+        if (!isValid) throw new Error("Invalid password");
 
-  }),
+        return { id: email, email };
+      },
+    }),
 
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
     FacebookProvider({
       clientId: process.env.FACEBOOK_CLIENT_ID!,
-      clientSecret: process.env.FACEBOOK_CLIENT_SECRET!
+      clientSecret: process.env.FACEBOOK_CLIENT_SECRET!,
     }),
     GitHubProvider({
       clientId: process.env.GITHUB_CLIENT_ID!,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET!
-    })
+      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+    }),
   ],
+
   session: { strategy: "jwt" as const },
   secret: process.env.NEXTAUTH_SECRET,
   pages: { signIn: "/login" },
-callbacks: {
+
+  callbacks: {
     async signIn({
       user,
       account,
-      profile,
-      email,
-      credentials,
     }: {
       user: User;
       account: Account | null;
       profile?: Profile;
-      email?: { verificationRequest?: boolean } | null;
-      credentials?: Record<string, any> | undefined;
     }) {
       try {
         if (!user.email) return false;
 
         const emailLower = user.email.toLowerCase();
-        const userDocRef = doc(db, "users", emailLower);
-        const userDocSnap = await getDoc(userDocRef);
+        const userRef = adminDb.collection("users").doc(emailLower);
+        const userSnap = await userRef.get();
 
-        if (!userDocSnap.exists()) {
-          await setDoc(userDocRef, {
+        // ✅ Create new user doc if not found (for OAuth)
+        if (!userSnap.exists) {
+          await userRef.set({
             email: emailLower,
             name: user.name || "",
             image: user.image || "",
@@ -92,6 +92,4 @@ callbacks: {
 };
 
 const handler = NextAuth(authOptions);
-
-// App Router requires named exports for HTTP methods
 export { handler as GET, handler as POST };

@@ -1,33 +1,39 @@
-// app/api/project/get/route.ts
 import { NextResponse } from "next/server";
-import { db } from "@/lib/firebaseConfig";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { adminDb } from "@/lib/firebaseAdmin"; // use Admin SDK
 
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
-    const ownerid = url.searchParams.get("ownerid"); // client passes ?ownerid=email
+    const ownerid = url.searchParams.get("ownerid"); // e.g. ?ownerid=email
 
     if (!ownerid) {
       return NextResponse.json({ message: "Missing ownerid" }, { status: 400 });
     }
 
-    const projectsRef = collection(db, "projects");
+    // Query Firestore using the Admin SDK
+    const snapshot = await adminDb
+      .collection("projects")
+      .where("ownerid", "==", ownerid)
+      .get();
 
-    // Query for projects with ownerid equal to the provided value
-    const q = query(projectsRef, where("ownerid", "==", ownerid));
-    const querySnapshot = await getDocs(q);
+    if (snapshot.empty) {
+      return NextResponse.json({ projects: [] }, { status: 200 });
+    }
 
-    const projects: any[] = [];
-    querySnapshot.forEach((doc) => {
-      projects.push({ id: doc.id, ...doc.data() });
-    });
+    // Map documents into array
+    const projects = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
 
-    return NextResponse.json({ projects });
+    return NextResponse.json({ projects }, { status: 200 });
   } catch (err: any) {
-    console.error("Error fetching projects:", err);
+    console.error("❌ Error fetching projects:", err);
     return NextResponse.json(
-      { message: "Error fetching projects", error: err?.message || String(err) },
+      {
+        message: "Error fetching projects",
+        error: err?.message || String(err),
+      },
       { status: 500 }
     );
   }

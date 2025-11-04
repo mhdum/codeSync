@@ -1,80 +1,54 @@
+// app/accept-invite/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { doc, getDoc, updateDoc, arrayUnion } from "firebase/firestore";
-import { db } from "../../../lib/firebaseConfig";
 
 export default function AcceptInvitePage() {
   const searchParams = useSearchParams();
   const inviteId = searchParams.get("inviteId");
   const [message, setMessage] = useState("Loading invitation...");
-  const loggedInEmail = localStorage.getItem("userEmail");
-
-  if (!inviteId) return; 
-  if (!loggedInEmail) {
-  // User is not logged in → store inviteId to handle later
-  localStorage.setItem("pendingInvite", inviteId);
-
-  // Redirect to signup/login
-  window.location.href = "/";
-  return;
-}
 
   useEffect(() => {
     const handleAccept = async () => {
-      
+      const email = localStorage.getItem("userEmail");
+
+      if (!inviteId) {
+        setMessage("Invalid or missing invitation ID.");
+        return;
+      }
+
+      if (!email) {
+        // Save pending invite and redirect to login
+        localStorage.setItem("pendingInvite", inviteId);
+        window.location.href = "/";
+        return;
+      }
 
       try {
-
-        
-        const inviteRef = doc(db, "collaborationInvites", inviteId);
-        const snap = await getDoc(inviteRef);
-
-        if (!snap.exists()) {
-          setMessage("Invitation not found or expired.");
-          return;
-        }
-
-        const invite = snap.data();
-
-        // Ensure invite has projects
-        if (!invite.selectedProjects || invite.selectedProjects.length === 0) {
-          setMessage("Invalid invitation data.");
-          return;
-        }
-
-        // ✅ Compare logged-in email
-        
-        if (!loggedInEmail || invite.email.toLowerCase() !== loggedInEmail.toLowerCase()) {
-          setMessage("❌ You are not authorized to accept this invitation.");
-          return;
-        }
-
-        // 1️⃣ Mark invite accepted
-        await updateDoc(inviteRef, { status: "accepted" });
-
-        // 2️⃣ Add collaborator to each project in selectedProjects
-        for (const proj of invite.selectedProjects) {
-          if (!proj.projectId) continue; // skip invalid
-          const projectRef = doc(db, "projects", proj.projectId);
-          await updateDoc(projectRef, {
-          collaborators: arrayUnion(invite.email),
+        const res = await fetch("/api/invite/accept", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ inviteId, email }),
         });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          console.error("Invite accept failed:", data);
+          setMessage(`❌ ${data.error || "Failed to accept invitation."}`);
+          return;
         }
 
-
-
-        setMessage("🎉 Invitation accepted! You can now access the project.");      } 
-      catch (err) {
-        console.error(err);
+        setMessage("🎉 Invitation accepted! Redirecting...");
+        // Add a small delay before redirect
+        setTimeout(() => {
+          window.location.href = "/dashboard?refresh=true";
+        }, 1200);
+      } catch (err) {
+        console.error("Accept error:", err);
         setMessage("Error accepting invitation.");
       }
-      setTimeout(() => {
-        window.location.href = "/dashboard?refresh=true";
-      }, 500);
-
-    
     };
 
     handleAccept();
@@ -82,8 +56,7 @@ export default function AcceptInvitePage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center">
-      <p className="text-xl">{message}</p>
+      <p className="text-xl text-center px-4">{message}</p>
     </div>
   );
 }
-

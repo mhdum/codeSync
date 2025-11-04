@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
-import { db } from "../../../lib/firebaseConfig";
-import { collection, addDoc, serverTimestamp, doc, getDoc } from "firebase/firestore";
+import { adminDb } from "@/lib/firebaseAdmin";
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,23 +13,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 1️⃣ Fetch sender profile to get name
-    const senderRef = doc(db, "users", senderId.toLowerCase());
-    const senderSnap = await getDoc(senderRef);
-    let senderName = "Someone";
+    // 1️⃣ Fetch sender profile to get name (from Admin SDK)
+    const senderRef = adminDb.collection("users").doc(senderId.toLowerCase());
+    const senderSnap = await senderRef.get();
 
-    if (senderSnap.exists()) {
+    let senderName = "Someone";
+    if (senderSnap.exists) {
       const senderData = senderSnap.data();
-      senderName = senderData.name || "Someone";
+      senderName = senderData?.name || "Someone";
     }
 
-    // 2️⃣ Create a new invite document in Firestore
-    const inviteRef = await addDoc(collection(db, "collaborationInvites"), {
+    // 2️⃣ Create a new invite document (Admin SDK version)
+    const inviteRef = await adminDb.collection("collaborationInvites").add({
       email,
-      selectedProjects, // store array of projects [{ projectId, projectName }]
+      selectedProjects, // array of { projectId, projectName }
       senderId,
       status: "pending",
-      createdAt: serverTimestamp(),
+      createdAt: new Date(), // Admin SDK handles timestamps via JS Date
     });
 
     // 3️⃣ Generate a unique invite link
@@ -69,13 +68,17 @@ export async function POST(req: NextRequest) {
       `,
     });
 
+    // ✅ Return success
     return NextResponse.json({
       success: true,
       inviteId: inviteRef.id,
       message: "Invitation email sent successfully!",
     });
   } catch (error: any) {
-    console.error("Error sending invite:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("🔥 Error sending invite:", error);
+    return NextResponse.json(
+      { error: error.message || "Failed to send invite" },
+      { status: 500 }
+    );
   }
 }

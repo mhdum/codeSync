@@ -247,6 +247,33 @@ export default function Dashboard() {
     // fetchProjects();
   }, [searchParams]);
 
+  useEffect(() => {
+  const pendingInvite = localStorage.getItem("pendingInvite");
+  const email = localStorage.getItem("userEmail");
+  if (pendingInvite && email) {
+    (async () => {
+      try {
+        const res = await fetch("/api/invite/accept", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ inviteId: pendingInvite, email }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          console.log("✅ Pending invite auto-accepted:", data);
+          localStorage.removeItem("pendingInvite");
+          window.location.href = "/dashboard?refresh=true";
+        } else {
+          console.error("Failed auto-accept invite:", data);
+        }
+      } catch (err) {
+        console.error("Error auto-accepting invite:", err);
+      }
+    })();
+  }
+}, []);
+
+
   if (status === "loading") return <p>Loading...</p>;
   if (status === "unauthenticated")
     return (
@@ -315,7 +342,7 @@ export default function Dashboard() {
     try {
       // Send invite for all selected projects
       for (const project of selectedProjects) {
-        const res = await fetch("/api/invite", {
+        const res = await fetch("/api/invite/send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

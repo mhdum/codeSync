@@ -1,35 +1,47 @@
-import { db } from "../../../../lib/firebaseConfig"; // your firebase config
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { adminDb } from "@/lib/firebaseAdmin";
 
 export async function POST(req: Request) {
   try {
     const { name, email, localEmail } = await req.json();
-    if (!email || !localEmail)
+
+    if (!email || !localEmail) {
       return new Response("Email missing", { status: 400 });
+    }
 
-    const docRef = doc(db, "users", localEmail.toLowerCase());
-    const docSnap = await getDoc(docRef);
+    const localEmailLower = localEmail.toLowerCase();
+    const emailLower = email.toLowerCase();
 
-    if (!docSnap.exists()) {
+    const userRef = adminDb.collection("users").doc(localEmailLower);
+    const userSnap = await userRef.get();
+
+    if (!userSnap.exists) {
       return new Response("Original user not found", { status: 404 });
     }
 
-    // Merge updates: only name and email fields will change
-    await setDoc(
-      docRef,
+    // ✅ Update only specific fields while preserving others
+    await userRef.set(
       {
         name: name || "",
-        email: email.toLowerCase(),
+        email: emailLower,
       },
-      { merge: true } // important to preserve other fields
+      { merge: true } // ensures only provided fields are updated
     );
 
-    return new Response(JSON.stringify({ message: "Profile updated" }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
-  } catch (err) {
-    console.error(err);
-    return new Response("Error updating profile", { status: 500 });
+    return new Response(
+      JSON.stringify({ message: "Profile updated" }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  } catch (err: any) {
+    console.error("🔥 Error updating profile:", err);
+    return new Response(
+      JSON.stringify({
+        message: "Error updating profile",
+        error: err.message || String(err),
+      }),
+      { status: 500 }
+    );
   }
 }
