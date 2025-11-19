@@ -13,15 +13,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
-import {
-  collection,
-  addDoc,
-  getDocs,
-  query,
-  where,
-  serverTimestamp,
-} from "firebase/firestore";
-import { db } from "@/lib/firebaseConfig"; // 🔥 ensure firebase is initialized
+
+
 
 import { useToast } from "@/hooks/use-toast";
 
@@ -53,6 +46,21 @@ export default function ProjectPage() {
   const [creating, setCreating] = useState(false);
   const [files, setFiles] = useState<ProjectFile[]>([]);
 
+  const [collaborators, setCollaborators] = useState<any[]>([]);
+  const [selectedEditor, setSelectedEditor] = useState<string>("");
+
+  const [savingRole, setSavingRole] = useState(false);
+
+  const [userRole, setUserRole] = useState<"editor" | "viewer" | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  const [isCollaborator, setIsCollaborator] = useState(false);
+
+  const [loadingFiles, setLoadingFiles] = useState(true);
+  const [loadingCollab, setLoadingCollab] = useState(true);
+  const [loadingRole, setLoadingRole] = useState(true);
+
+
   const { toast } = useToast();
 
   // Fetch supported runtimes
@@ -81,23 +89,124 @@ export default function ProjectPage() {
 
     const fetchFiles = async () => {
       try {
-        const q = query(
-          collection(db, "project_files"),
-          where("project_id", "==", projectId)
-        );
-        const snap = await getDocs(q);
-        const list: ProjectFile[] = snap.docs.map((doc) => ({
-          id: doc.id,
-          ...(doc.data() as any),
-        }));
-        setFiles(list);
+        setLoadingFiles(true);
+
+        const res = await fetch(`/api/files/get?projectId=${projectId}`);
+        const data = await res.json();
+        setFiles(data.files || []);
       } catch (err) {
         console.error("Error fetching files:", err);
+      } finally {
+        setLoadingFiles(false);
+      }
+    };
+    fetchFiles();
+  }, [projectId]);
+
+  useEffect(() => {
+    if (!projectId) return;
+
+    const fetchData = async () => {
+      try {
+        setLoadingCollab(true);
+
+        const email = localStorage.getItem("userEmail");
+
+        const res = await fetch(`/api/collaborations/${projectId}`, {
+          headers: { "x-user-email": email || "" },
+        });
+
+        const data = await res.json();
+        setCollaborators(data.collaborators || []);
+      } finally {
+        setLoadingCollab(false);
       }
     };
 
-    fetchFiles();
+    fetchData();
   }, [projectId]);
+
+
+  useEffect(() => {
+    if (!projectId) return;
+
+    const checkRole = async () => {
+
+      try {
+        setLoadingRole(true);
+        const userEmail = localStorage.getItem("userEmail");
+        console.log(`user email ${userEmail}`);
+        const res = await fetch("/api/collaborations/check-role", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            projectId,
+            userEmail,
+          }),
+        });
+
+        const data = await res.json();
+        console.log("data from check role endpoint ");
+        console.log(data);
+        setUserRole(data.role);
+        setIsAdmin(data.isAdmin);
+        setIsCollaborator(data.isCollaborator);
+
+      } finally {
+        setLoadingRole(false);
+      }
+    };
+
+    checkRole();
+  }, [projectId]);
+
+  // Update Role
+  const updateRole = async () => {
+    if (!selectedEditor) {
+      alert("Please select one collaborator as Editor.");
+      return;
+    }
+
+    try {
+      setSavingRole(true);
+
+      const senderEmail = localStorage.getItem("userEmail");
+
+      const res = await fetch("/api/collaborations/update-role", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          editorEmail: selectedEditor,
+          senderEmail,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || "Failed to update role.");
+        return;
+      }
+
+      // SUCCESS MESSAGE
+      alert("Editor role updated successfully!");
+
+      // Refresh UI roles
+      setCollaborators((prev) =>
+        prev.map((user) => ({
+          ...user,
+          role: user.email === selectedEditor ? "editor" : "viewer",
+        }))
+      );
+
+    } catch (err: any) {
+      alert("Something went wrong while updating role.");
+    } finally {
+      setSavingRole(false);
+    }
+  };
+
 
   // Create file and save in Firestore
   const handleCreateFile = async () => {
@@ -111,19 +220,31 @@ export default function ProjectPage() {
     }
 
     try {
+
+      console.log("Current userRole =", userRole);
       setCreating(true);
 
       const userEmail = localStorage.getItem("userEmail") || "unknown";
-
-      const docRef = await addDoc(collection(db, "project_files"), {
-        project_id: projectId,
-        file_name: fileName,
-        file_extension: fileExtension,
-        createdBy: userEmail,
-        content: "",
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+      console.log("user email ");
+      const response = await fetch("/api/files/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          projectId,
+          fileName,
+          fileExtension,
+          userEmail,
+        }),
       });
+
+      const data = await response.json();
+      if (!response.ok) {
+        alert(data.error || "Failed to create file.");
+        return;
+      }
+      console.log("File created with ID:", data.id);
 
       // console.log("File created with ID:", docRef.id);
 
@@ -136,25 +257,24 @@ export default function ProjectPage() {
       //   }&projectId=${projectId}`
       // );
 
-      console.log("File created with ID:", docRef.id);
+      // console.log("File created with ID:", docRef.id);
+      setCreating(false);
+      router.push(
+        `/open/editor/new?filename=${encodeURIComponent(
+          fileName
+        )}&extension=${encodeURIComponent(fileExtension)}&fileId=${data.id
+        }&projectId=${projectId}&isAdmin=${isAdmin}&userRole=${userRole}`
+      );
 
-router.push(
-  `/open/editor/new?filename=${encodeURIComponent(
-    fileName
-  )}&extension=${encodeURIComponent(fileExtension)}&fileId=${
-    docRef.id
-  }&projectId=${projectId}`
-);
+      setTimeout(() => {
+        toast({
+          title: "File Created 🎉",
+          description: `${fileName}.${fileExtension} created successfully!`,
+          duration: 3000,
+        });
+      }, 200);
 
-setTimeout(() => {
-  toast({
-    title: "File Created 🎉",
-    description: `${fileName}.${fileExtension} created successfully!`,
-    duration: 3000,
-  });
-}, 200);
-      
-      
+
     } catch (err) {
       console.error("Error creating file:", err);
       alert("Failed to create file.");
@@ -202,39 +322,106 @@ setTimeout(() => {
         )}
       </div>
 
-      <Button onClick={handleCreateFile} disabled={creating}>
+      <Button
+        onClick={handleCreateFile}
+        disabled={creating || userRole === "viewer"}
+      >
         {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        Create File
+        {userRole === "viewer" ? "You are a Viewer" : "Create File"}
       </Button>
-
       {/* File list */}
       <div className="mt-6">
         <h2 className="text-xl font-semibold">Project Files</h2>
-        {files.length === 0 ? (
-          <p className="text-gray-500">No files created yet.</p>
-        ) : (
-          <ul className="list-disc pl-6">
-            {files.map((file) => (
-              <li key={file.id} className="mt-1">
+        {loadingFiles ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="h-4 w-40 bg-gray-200 rounded animate-pulse"
+              ></div>
+            ))}
+          </div>
+        ) :
+
+
+          files.length === 0 ? (
+            <p className="text-gray-500">No files created yet.</p>
+          ) : (
+            <ul className="list-disc pl-6">
+              {files.map((file) => (
+                <li key={file.id} className="mt-1">
+                  <Button
+                    variant="link"
+                    onClick={() =>
+                      router.push(
+                        `/open/editor/new?filename=${encodeURIComponent(
+                          file.file_name
+                        )}&extension=${encodeURIComponent(
+                          file.file_extension
+                        )}&fileId=${file.id}&projectId=${projectId}&isAdmin=${isAdmin}&userRole=${userRole}`
+                      )
+                    }
+                  >
+                    {file.file_name}.{file.file_extension}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+      </div>
+      {isAdmin && (
+        <div className="mt-10 p-4 border rounded-lg">
+          <h2 className="text-lg font-semibold">Manage Collaborators</h2>
+
+          {loadingCollab ? (
+            <div className="space-y-3 mt-2">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex justify-between items-center">
+                  <div className="h-4 w-32 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="h-4 w-4 bg-gray-300 rounded-full animate-pulse"></div>
+                </div>
+              ))}
+            </div>
+          ) :
+
+            collaborators.length === 0 ? (
+              <p className="text-gray-500 mt-2">No collaborators found.</p>
+            ) : (
+              <>
+                <p className="mt-2 text-sm text-gray-500">
+                  Select one collaborator as <b>Editor</b>. Others will become viewers.
+                </p>
+
+                <div className="mt-4 space-y-3">
+                  {collaborators.map((c) => (
+                    <div key={c.email} className="flex items-center justify-between">
+                      <p className="text-sm">{c.email}</p>
+
+                      <input
+                        type="radio"
+                        name="editor"
+                        checked={selectedEditor === c.email}
+                        onChange={() => setSelectedEditor(c.email)}
+                        className="h-4 w-4"
+                      />
+                    </div>
+                  ))}
+                </div>
+
                 <Button
-                  variant="link"
-                  onClick={() =>
-                    router.push(
-                      `/open/editor/new?filename=${encodeURIComponent(
-                        file.file_name
-                      )}&extension=${encodeURIComponent(
-                        file.file_extension
-                      )}&fileId=${file.id}&projectId=${projectId}`
-                    )
+                  className="mt-4 px-4 py-1 h-8 text-sm w-auto self-end"
+                  onClick={updateRole}
+                  disabled={savingRole
+
                   }
                 >
-                  {file.file_name}.{file.file_extension}
+                  {savingRole && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Save
                 </Button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+              </>
+            )}
+        </div>
+      )}
     </div>
   );
 }

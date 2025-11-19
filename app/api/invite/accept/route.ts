@@ -50,21 +50,28 @@ export async function POST(req: Request) {
     if (!Array.isArray(invite.selectedProjects) || invite.selectedProjects.length === 0) {
       return NextResponse.json({ error: "No projects in invitation" }, { status: 400 });
     }
+    
+    const updatedSelectedProjects = invite.selectedProjects.map((proj) => ({
+      ...proj,
+      role: "viewer",
+    }));
 
     // ✅ Mark invitation as accepted
     await inviteRef.update({
       status: "accepted",
       acceptedAt: new Date().toISOString(),
+      selectedProjects: updatedSelectedProjects
     });
 
     // ✅ Add collaborator to each project
     const batch = db.batch();
-    for (const proj of invite.selectedProjects) {
+    for (const proj of updatedSelectedProjects) {
       const projectId = proj.projectId || proj.project_id;
       if (!projectId) continue;
       const projectRef = db.collection("projects").doc(projectId);
       batch.update(projectRef, {
         collaborators: admin.firestore.FieldValue.arrayUnion(invite.email),
+
       });
     }
     await batch.commit();

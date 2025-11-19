@@ -509,6 +509,10 @@ export default function Dashboard() {
                 <DialogDescription>
                   Type the email of the person you want to invite and select the
                   project(s)
+                  <br />
+                  <span className="text-sm text-muted-foreground">
+                    The recipient will be added with <strong>viewer-only access</strong>.
+                  </span>
                 </DialogDescription>
               </DialogHeader>
 
