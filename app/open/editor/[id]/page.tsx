@@ -14,9 +14,17 @@ function boolFromParam(p: string | null) {
   return p === "true" || p === "1";
 }
 
-function DiffViewer({ original, modified }: { original: string; modified: string }) {
-  const differences = diff.diffLines(original, modified);
+function DiffViewer({
+  original,
+  modified,
+}: {
+  original: string | null;
+  modified: string | null;
+}) {
+  const safeOriginal = original ?? "";
+  const safeModified = modified ?? "";
 
+  const differences = diff.diffLines(safeOriginal, safeModified);
   return (
     <div className="font-mono text-sm bg-gray-900 p-2 rounded max-h-40 overflow-auto">
       {differences.map((part, index) => {
@@ -25,7 +33,17 @@ function DiffViewer({ original, modified }: { original: string; modified: string
         return (
           <div key={index} className={`${color} px-1 py-0.5`}>
             <span className="opacity-70">{prefix}</span>
-            {part.value.split("\n").map((line, lineIndex) => line !== "" && <div key={lineIndex} className="whitespace-pre">{line}</div>)}
+
+            {(part.value ?? "")
+              .split("\n")
+              .map(
+                (line, lineIndex) =>
+                  line !== "" && (
+                    <div key={lineIndex} className="whitespace-pre">
+                      {line}
+                    </div>
+                  )
+              )}
           </div>
         );
       })}
