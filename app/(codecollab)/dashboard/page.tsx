@@ -66,7 +66,6 @@ interface ActivityDay {
   [key: string]: string | number;
 }
 
-
 type CompletedProject = {
   projectId: string;
   projectTitle: string;
@@ -78,7 +77,6 @@ type CreatedProject = {
   projectTitle: string;
   createdAt?: { seconds: number };
 };
-
 
 export default function Dashboard() {
   const { data: session, status } = useSession();
@@ -312,7 +310,11 @@ export default function Dashboard() {
 
       try {
         setDurationsLoading(true);
-        const res = await fetch(`/api/project/project-stats?userEmail=${encodeURIComponent(userEmail)}`);
+        const res = await fetch(
+          `/api/project/project-stats?userEmail=${encodeURIComponent(
+            userEmail
+          )}`
+        );
         if (!res.ok) {
           console.error("project-stats fetch failed", res.status);
           setDurationsLoading(false);
@@ -329,17 +331,19 @@ export default function Dashboard() {
 
         // project arrays (defensive)
         setProjectStats({
-          completedProjects: Array.isArray(data.completedProjects) ? data.completedProjects : [],
-          createdProjects: Array.isArray(data.createdProjects) ? data.createdProjects : [],
+          completedProjects: Array.isArray(data.completedProjects)
+            ? data.completedProjects
+            : [],
+          createdProjects: Array.isArray(data.createdProjects)
+            ? data.createdProjects
+            : [],
         });
-
       } catch (err) {
         console.error("fetchStats error:", err);
       } finally {
         setDurationsLoading(false);
       }
     };
-
 
     // const fetchProjects = async () => {
     //   const ownerid = localStorage.getItem("userEmail");
@@ -610,7 +614,6 @@ export default function Dashboard() {
     });
   }, [projectStats]);
 
-
   const activityHeatmapData: ActivityDay[] = [
     {
       day: "Mon",
@@ -733,6 +736,14 @@ export default function Dashboard() {
     { month: "Apr", completed: 4 },
     { month: "May", completed: 6 },
   ];
+
+  const langToColorKey: Record<string, string> = {
+    Java: "java",
+    C: "c",
+    "C++": "cpp",
+    Python: "python",
+    Others: "others",
+  };
 
   const router = useRouter();
 
@@ -925,7 +936,7 @@ export default function Dashboard() {
               <CardTitle>Project Statistics</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2   gap-4">
                 {/* Project Completion Status */}
                 <Card
                   onClick={() => router.push("/projectDetails/status")}
@@ -994,6 +1005,7 @@ export default function Dashboard() {
                           Languages Used
                         </CardTitle>
                       </CardHeader>
+
                       <CardContent className="h-[260px] flex justify-center items-center">
                         <ChartContainer
                           config={{
@@ -1017,7 +1029,14 @@ export default function Dashboard() {
                           <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                               <Pie
-                                data={languagesChartData}
+                                data={languagesChartData
+                                  .filter((item) => item.value > 0)
+                                  .map((item) => ({
+                                    ...item,
+                                    fill: `var(--color-${
+                                      langToColorKey[item.name] ?? "others"
+                                    })`,
+                                  }))}
                                 dataKey="value"
                                 nameKey="name"
                                 outerRadius="80%"
@@ -1026,6 +1045,7 @@ export default function Dashboard() {
                                   `${name} ${(percent * 100).toFixed(0)}%`
                                 }
                               />
+
                               <ChartTooltip content={<ChartTooltipContent />} />
                             </PieChart>
                           </ResponsiveContainer>
@@ -1045,40 +1065,13 @@ export default function Dashboard() {
                     </Card>
                   )}
                 </Link>
-
-                <Link href="/projectDetails/completionChart" className="block">
-                  <Card className="transition-transform hover:scale-[1.02] cursor-pointer">
-                    <CardHeader>
-                      <CardTitle className="text-lg">
-                        Projects Completed This Year
-                      </CardTitle>
-                      <p className="text-muted-foreground text-sm">
-                        Monthly breakdown of completed projects
-                      </p>
-                    </CardHeader>
-
-                    <CardContent className="h-[260px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={projectCompletionPerMonth}>
-                          <XAxis dataKey="month" />
-                          <YAxis />
-                          <Tooltip />
-                          <Bar
-                            dataKey="completed"
-                            fill="hsl(var(--chart-4))"
-                            radius={[6, 6, 0, 0]}
-                          />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </CardContent>
-                  </Card>
-                </Link>
               </div>
             </CardContent>
             <CardHeader>
               <CardTitle className="text-lg">Project Completion Time</CardTitle>
               <CardDescription>
-                Duration taken to complete each project (CreatedAt → CompletedAt)
+                Duration taken to complete each project (CreatedAt →
+                CompletedAt)
               </CardDescription>
             </CardHeader>
 
@@ -1086,7 +1079,9 @@ export default function Dashboard() {
               {durationsLoading ? (
                 <div className="h-full flex items-center justify-center">
                   <Loader2 className="w-6 h-6 animate-spin mr-2" />
-                  <span className="text-sm text-muted-foreground">Loading project durations...</span>
+                  <span className="text-sm text-muted-foreground">
+                    Loading project durations...
+                  </span>
                 </div>
               ) : !projectDurations.length ? (
                 <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
@@ -1140,7 +1135,6 @@ export default function Dashboard() {
                       />
                     </BarChart>
                   </ResponsiveContainer>
-
                 </ChartContainer>
               )}
             </CardContent>

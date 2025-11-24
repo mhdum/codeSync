@@ -3,11 +3,24 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Trash, Plus, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import Link from "next/link";
 
 type Project = {
@@ -19,7 +32,6 @@ type Project = {
   updatedAt?: string | Date | null;
 };
 
-
 export default function Projects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,7 +41,9 @@ export default function Projects() {
 
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [collabDialogOpen, setCollabDialogOpen] = useState(false);
-  const [selectedCollaborators, setSelectedCollaborators] = useState<string[]>([]);
+  const [selectedCollaborators, setSelectedCollaborators] = useState<string[]>(
+    []
+  );
 
   const [removing, setRemoving] = useState(false);
 
@@ -114,13 +128,17 @@ export default function Projects() {
   };
 
   return (
-    <div className="flex-1 flex flex-col">
-      <header className="bg-white border-b p-4 flex justify-between items-center">
-        <h2 className="text-xl font-semibold">Projects</h2>
+    <div className="flex-1 flex flex-col ">
+      <header className="bg-white dark:bg-gray-900 border-b dark:border-gray-700 p-4 flex justify-between items-center">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+          Projects
+        </h2>
 
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" /> New Project</Button>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" /> New Project
+            </Button>
           </DialogTrigger>
 
           <DialogContent>
@@ -136,7 +154,9 @@ export default function Projects() {
               />
 
               <Button disabled={isSaving} onClick={handleSaveProject}>
-                {isSaving ? <Loader2 className="animate-spin h-4 w-4 mr-1" /> : null}
+                {isSaving ? (
+                  <Loader2 className="animate-spin h-4 w-4 mr-1" />
+                ) : null}
                 {isSaving ? "Saving..." : "Save"}
               </Button>
             </div>
@@ -149,7 +169,7 @@ export default function Projects() {
         </Avatar> */}
       </header>
 
-      <main className="flex-1 p-6 overflow-auto">
+      <main className="flex-1 p-6 overflow-auto bg-gray-50 dark:bg-gray-950">
         <Card>
           <CardHeader>
             <CardTitle>All Projects</CardTitle>
@@ -247,8 +267,13 @@ export default function Projects() {
               <p>No collaborators</p>
             )}
 
-            <Button disabled={removing || !selectedCollaborators.length} onClick={removeCollaborators}>
-              {removing ? <Loader2 className="animate-spin h-4 w-4 mr-1" /> : null}
+            <Button
+              disabled={removing || !selectedCollaborators.length}
+              onClick={removeCollaborators}
+            >
+              {removing ? (
+                <Loader2 className="animate-spin h-4 w-4 mr-1" />
+              ) : null}
               {removing ? "Removing..." : "Continue"}
             </Button>
           </div>

@@ -41,7 +41,21 @@ const languageColorMap: Record<string, string> = {
 
 export default function LanguagesUsagePage() {
   const [projectLanguageData, setProjectLanguageData] = useState<any[]>([]);
-  const userEmail = "new@user.com"; // replace with session/email
+
+  const [userEmail, setUserEmail] = useState<string>("");
+  
+  // replace with session/email
+
+   useEffect(() => {
+    const loadStats = async () => {
+      const userEmail = localStorage.getItem("userEmail");
+      if (!userEmail) return;
+      setUserEmail(userEmail);
+      fetchLanguages(userEmail);
+    };
+
+    loadStats();
+  }, []);
 
   useEffect(() => {
     fetchLanguages(userEmail);
@@ -54,11 +68,11 @@ export default function LanguagesUsagePage() {
 
     const formattedProjects: any[] = [];
 
-    data.projects.forEach((project: any) => {
+    data?.projects?.forEach((project: any) => {
       const languageCount: Record<string, number> = {};
       let totalFiles = 0;
 
-      project.files.forEach((file: any) => {
+      project?.files?.forEach((file: any) => {
         const ext = file.file_extension?.toLowerCase();
         const lang = extensionToLanguage[ext] || "Others";
 
