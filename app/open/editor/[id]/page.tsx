@@ -308,12 +308,15 @@ export default function ProjectEditorPage() {
 
     try {
       const userEmail = typeof window !== "undefined" ? localStorage.getItem("userEmail") || "anonymous" : "anonymous";
-      provider.awareness.setLocalStateField("user", {
-        id: userEmail,
-        name: userEmail.split("@")[0],
-        isAdmin,
-        isViewer,
-        sessionActive,
+      provider.awareness.setLocalState({
+        user: {
+          id: userEmail,
+          name: userEmail.split("@")[0],
+          isAdmin,
+          isViewer,
+          sessionActive,
+        },
+        cursor: null, // required for monaco remote cursor
       });
     } catch (e) {
       console.warn("awareness set failed", e);
@@ -555,8 +558,28 @@ export default function ProjectEditorPage() {
           try {
             const model = editor.getModel();
             if (!model) return;
-            bindingRef.current = new MonacoBinding(yText, model, new Set([editor]), provider.awareness);
+            bindingRef.current = new MonacoBinding(
+              yText,
+              model,
+              new Set([editor]),
+              provider.awareness
+            );
+
+            const awareness = provider.awareness;
             console.log("✅ Immediate MonacoBinding created after mount");
+            editor.onDidChangeCursorPosition((e: any) => {
+              awareness.setLocalStateField("cursor", {
+                anchor: model.getOffsetAt(e.position),
+                head: model.getOffsetAt(e.position),
+                name: localStorage.getItem("userEmail") || "unknown",
+                color: "#" + Math.floor(Math.random() * 16777215).toString(16),
+              });
+            });
+
+            // clear cursor when user leaves the page
+            window.addEventListener("beforeunload", () => {
+              awareness.setLocalStateField("cursor", null);
+            });
           } catch (e) {
             console.warn("Immediate binding failed", e);
           }
