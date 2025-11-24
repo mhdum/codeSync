@@ -4,23 +4,46 @@ import { adminDb } from "@/lib/firebaseAdmin";
 export async function GET(req: Request) {
     try {
         const url = new URL(req.url);
-        const userEmail = url.searchParams.get("userEmail");
+        const userEmail = url.searchParams.get("userEmail");  // may be null for collaborator
         const projectId = url.searchParams.get("projectId");
 
-        if (!userEmail || !projectId) {
-            return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+        if (!projectId) {
+            return NextResponse.json({ error: "Missing projectId" }, { status: 400 });
         }
 
-        const doc = await adminDb.collection("completed_projects").doc(userEmail).get();
+        // ----------------------------------------------------
+        // CASE 1 → ADMIN SIDE (userEmail is provided)
+        // ----------------------------------------------------
+        if (userEmail) {
+            const doc = await adminDb.collection("completed_projects").doc(userEmail).get();
 
-        if (!doc.exists) {
-            return NextResponse.json({ completed: false }, { status: 200 });
+            if (!doc.exists) {
+                return NextResponse.json({ completed: false }, { status: 200 });
+            }
+
+            const data = doc.data() ?? {};
+            const found = data.projects?.some((p: any) => p.projectId === projectId);
+
+            return NextResponse.json({ completed: found ?? false }, { status: 200 });
         }
 
-        const data = doc.data() ?? {};
-        const found = data.projects?.some((p: any) => p.projectId === projectId);
+        // ----------------------------------------------------
+        // CASE 2 → COLLABORATOR SIDE (userEmail missing)
+        // Only check by projectId across ALL users
+        // ----------------------------------------------------
+        const snapshot = await adminDb.collection("completed_projects").get();
 
-        return NextResponse.json({ completed: found ?? false }, { status: 200 });
+        let projectFound = false;
+
+        snapshot.forEach((doc: any) => {
+            const data = doc.data() ?? {};
+            if (data.projects?.some((p: any) => p.projectId === projectId)) {
+                projectFound = true;
+            }
+        });
+
+        return NextResponse.json({ completed: projectFound }, { status: 200 });
+
     } catch (err: any) {
         return NextResponse.json({ error: err.message }, { status: 500 });
     }

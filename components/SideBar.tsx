@@ -35,11 +35,11 @@ const sideBarItems = [
     icon: Folder,
     label: "Projects",
   },
-  {
-    href: "/collaborators",
-    icon: Users,
-    label: "Collaborators",
-  },
+  // {
+  //   href: "/collaborators",
+  //   icon: Users,
+  //   label: "Collaborators",
+  // },
   {
     href: "/settings",
     icon: Settings,
@@ -143,10 +143,9 @@ export default function SideBar() {
                   <Button
                     variant="ghost"
                     className={`w-full justify-start text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white
-                      ${
-                        isActive
-                          ? "bg-gray-200/70 dark:bg-gray-800 text-gray-900 dark:text-white font-medium"
-                          : ""
+                      ${isActive
+                        ? "bg-gray-200/70 dark:bg-gray-800 text-gray-900 dark:text-white font-medium"
+                        : ""
                       }`}
                   >
                     <item.icon className="mr-2 h-4 w-4" />

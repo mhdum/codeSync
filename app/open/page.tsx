@@ -150,10 +150,15 @@ export default function ProjectPage() {
     };
 
     const checkStatus = async () => {
-      const userEmail = localStorage.getItem("userEmail");
-      if (!userEmail) return;
+      let url = `/api/project/status/get?projectId=${projectId}`;
 
-      const res = await fetch(`/api/project/status/get?userEmail=${userEmail}&projectId=${projectId}`);
+      const userEmail = localStorage.getItem("userEmail");
+
+      if (!userEmail) return;
+      if (isAdmin && userEmail) {
+        url += `&userEmail=${userEmail}`;
+      }
+      const res = await fetch(url);
       const data = await res.json();
 
       setCompleted(data.completed);
@@ -348,18 +353,39 @@ export default function ProjectPage() {
       <h1 className="text-2xl font-bold">Project: {projectName}</h1>
       <p className="text-gray-500">Project ID: {projectId}</p>
       <div className="flex justify-end">
-        <Button
-          onClick={handleMarkCompleted}
-          disabled={loadingComplete || completed}   // ← FIX
-          className={`text-white ${completed
-            ? "bg-gray-400 cursor-not-allowed"
-            : "bg-green-600 hover:bg-green-700"
-            }`}
-        >
-          {loadingComplete ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : completed ? "Project Completed" : "Mark as Completed"}
-        </Button>
+
+        {/* ADMIN BUTTON */}
+        {isAdmin && (
+          <Button
+            onClick={handleMarkCompleted}
+            disabled={loadingComplete || completed}
+            className={`text-white ${completed
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-green-600 hover:bg-green-700"
+              }`}
+          >
+            {loadingComplete ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : completed ? (
+              "Project Completed"
+            ) : (
+              "Mark as Completed"
+            )}
+          </Button>
+        )}
+
+        {/* COLLABORATOR VIEW */}
+        {!isAdmin && (
+          <div className="ml-3 flex items-center">
+            {loadingComplete ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : completed ? (
+              <span className="text-green-600 font-medium">Project Completed</span>
+            ) : (
+              "" // collaborator sees NOTHING if not completed
+            )}
+          </div>
+        )}
 
       </div>
 

@@ -1,28 +1,67 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileCode, Plus, Edit, Trash, Loader2 } from "lucide-react";
-import Link from "next/link";
+import { Trash, Plus, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import SideBar from "@/components/SideBar";
+import Link from "next/link";
+
+type Project = {
+  project_id: string;
+  name: string;
+  ownerid: string;
+  collaborators: string[];
+  createdAt?: string | Date | null;
+  updatedAt?: string | Date | null;
+};
+
 
 export default function Projects() {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
   const [newProjectName, setNewProjectName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [open, setOpen] = useState(false); // control modal
+  const [open, setOpen] = useState(false);
 
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [collabDialogOpen, setCollabDialogOpen] = useState(false);
+  const [selectedCollaborators, setSelectedCollaborators] = useState<string[]>([]);
+
+  const [removing, setRemoving] = useState(false);
+
+  // --- Fetch Projects ---
+  const fetchProjects = async () => {
+    try {
+      setLoading(true);
+      const ownerid = localStorage.getItem("userEmail");
+      const res = await fetch("/api/project/list", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ownerid }),
+      });
+
+      const data = await res.json();
+      setProjects(data.projects || []);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to fetch projects");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  // --- Create Project ---
   const handleSaveProject = async () => {
-    console.log("Saving project...");
     setIsSaving(true);
     const ownerid = localStorage.getItem("userEmail");
-    console.log("Owner ID:", ownerid);
-    if (!ownerid || !newProjectName.trim()) return;
-
 
     try {
       const res = await fetch("/api/project/create", {
@@ -30,72 +69,84 @@ export default function Projects() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newProjectName, ownerid }),
       });
-
       const data = await res.json();
-      console.log("API response:", data);
-      if (!res.ok) throw new Error(data.message || "Failed to create project");
 
-      setNewProjectName("");
+      if (!res.ok) throw new Error(data.message);
+
       setOpen(false);
-      alert(`Project created successfully! ID: ${data.project_id}`);
+      setNewProjectName("");
+      fetchProjects();
     } catch (err) {
       console.error(err);
-      alert("Error creating project. Check console.");
+      alert("Error creating project");
     } finally {
       setIsSaving(false);
     }
   };
 
+  // --- Remove collaborators ---
+  const removeCollaborators = async () => {
+    if (!selectedProject) return;
+    setRemoving(true);
+
+    try {
+      const res = await fetch("/api/project/remove-collaborators", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          project_id: selectedProject.project_id,
+          collaboratorsToRemove: selectedCollaborators,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      alert("Collaborators removed");
+      setCollabDialogOpen(false);
+
+      fetchProjects();
+    } catch (err) {
+      alert("Error removing collaborators");
+    } finally {
+      setRemoving(false);
+    }
+  };
 
   return (
-
     <div className="flex-1 flex flex-col">
       <header className="bg-white border-b p-4 flex justify-between items-center">
         <h2 className="text-xl font-semibold">Projects</h2>
-        <div className="flex items-center space-x-4">
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                New Project
+
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button><Plus className="mr-2 h-4 w-4" /> New Project</Button>
+          </DialogTrigger>
+
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create New Project</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <Input
+                placeholder="Project Name"
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+              />
+
+              <Button disabled={isSaving} onClick={handleSaveProject}>
+                {isSaving ? <Loader2 className="animate-spin h-4 w-4 mr-1" /> : null}
+                {isSaving ? "Saving..." : "Save"}
               </Button>
-            </DialogTrigger>
+            </div>
+          </DialogContent>
+        </Dialog>
 
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Create New Project</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <Input
-                  placeholder="Project Name"
-                  value={newProjectName}
-                  onChange={(e) => setNewProjectName(e.target.value)}
-                />
-                <Button
-                  onClick={async () => {
-                    await handleSaveProject(); // explicitly call async function
-                  }}
-                  disabled={isSaving}
-                >
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin mr-2 inline-block" />
-                      Saving...
-                    </>
-                  ) : (
-                    "Save Changes"
-                  )}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-
-
-          <Avatar>
-            <AvatarImage src="/placeholder-user.jpg" alt="User" />
-            <AvatarFallback>JD</AvatarFallback>
-          </Avatar>
-        </div>
+        {/* <Avatar>
+          <AvatarImage src="/placeholder-user.jpg" />
+          <AvatarFallback>U</AvatarFallback>
+        </Avatar> */}
       </header>
 
       <main className="flex-1 p-6 overflow-auto">
@@ -103,49 +154,106 @@ export default function Projects() {
           <CardHeader>
             <CardTitle>All Projects</CardTitle>
           </CardHeader>
+
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Project Name</TableHead>
-                  <TableHead>Last Edited</TableHead>
-                  <TableHead>Collaborators</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {/* TODO: fetch projects dynamically */}
-                {[
-                  { name: "Project Alpha", lastEdited: "2025-08-05", collaborators: 3 },
-                  { name: "Project Beta", lastEdited: "2025-08-04", collaborators: 5 },
-                  { name: "Project Gamma", lastEdited: "2025-08-03", collaborators: 2 },
-                ].map((project) => (
-                  <TableRow key={project.name}>
-                    <TableCell className="font-medium">
-                      <Link href={`/projects/${project.name.toLowerCase().replace(" ", "-")}`}>
-                        {project.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{project.lastEdited}</TableCell>
-                    <TableCell>{project.collaborators}</TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button variant="outline" size="sm">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="destructive" size="sm">
-                          <Trash className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+            {loading ? (
+              <div className="animate-pulse space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-10 bg-gray-200 rounded"></div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Project</TableHead>
+                    <TableHead>Last Edited</TableHead>
+                    <TableHead>Collaborators</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+
+                <TableBody>
+                  {projects.map((proj) => {
+                    const lastEdited = proj.updatedAt
+                      ? new Date(proj.updatedAt).toLocaleString()
+                      : "—";
+
+                    const collaboratorsCount = proj.collaborators?.length || 0;
+
+                    return (
+                      <TableRow key={proj.project_id}>
+                        <TableCell>
+                          <Link href={`/projects/${proj.project_id}`}>
+                            {proj.name}
+                          </Link>
+                        </TableCell>
+
+                        <TableCell>{lastEdited}</TableCell>
+
+                        <TableCell>{collaboratorsCount}</TableCell>
+
+                        <TableCell>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedProject(proj);
+                              setSelectedCollaborators([]);
+                              setCollabDialogOpen(true);
+                            }}
+                          >
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </main>
-    </div>
 
+      {/* --- Collaborator Removal Dialog --- */}
+      <Dialog open={collabDialogOpen} onOpenChange={setCollabDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove Collaborators</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            {selectedProject?.collaborators?.length ? (
+              selectedProject.collaborators.map((email) => (
+                <label key={email} className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    value={email}
+                    checked={selectedCollaborators.includes(email)}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setSelectedCollaborators((prev) =>
+                        checked
+                          ? [...prev, email]
+                          : prev.filter((x) => x !== email)
+                      );
+                    }}
+                  />
+                  <span>{email}</span>
+                </label>
+              ))
+            ) : (
+              <p>No collaborators</p>
+            )}
+
+            <Button disabled={removing || !selectedCollaborators.length} onClick={removeCollaborators}>
+              {removing ? <Loader2 className="animate-spin h-4 w-4 mr-1" /> : null}
+              {removing ? "Removing..." : "Continue"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
