@@ -203,8 +203,8 @@ export default function Dashboard() {
           createdAt: p.createdAt?.seconds
             ? new Date(p.createdAt.seconds * 1000)
             : p.createdAt
-            ? new Date(p.createdAt)
-            : new Date(),
+              ? new Date(p.createdAt)
+              : new Date(),
           role: "owner",
         }));
         console.log("Owned projects:", list);
@@ -248,30 +248,30 @@ export default function Dashboard() {
   }, [searchParams]);
 
   useEffect(() => {
-  const pendingInvite = localStorage.getItem("pendingInvite");
-  const email = localStorage.getItem("userEmail");
-  if (pendingInvite && email) {
-    (async () => {
-      try {
-        const res = await fetch("/api/invite/accept", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ inviteId: pendingInvite, email }),
-        });
-        const data = await res.json();
-        if (res.ok) {
-          console.log("✅ Pending invite auto-accepted:", data);
-          localStorage.removeItem("pendingInvite");
-          window.location.href = "/dashboard?refresh=true";
-        } else {
-          console.error("Failed auto-accept invite:", data);
+    const pendingInvite = localStorage.getItem("pendingInvite");
+    const email = localStorage.getItem("userEmail");
+    if (pendingInvite && email) {
+      (async () => {
+        try {
+          const res = await fetch("/api/invite/accept", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ inviteId: pendingInvite, email }),
+          });
+          const data = await res.json();
+          if (res.ok) {
+            console.log("✅ Pending invite auto-accepted:", data);
+            localStorage.removeItem("pendingInvite");
+            window.location.href = "/dashboard?refresh=true";
+          } else {
+            console.error("Failed auto-accept invite:", data);
+          }
+        } catch (err) {
+          console.error("Error auto-accepting invite:", err);
         }
-      } catch (err) {
-        console.error("Error auto-accepting invite:", err);
-      }
-    })();
-  }
-}, []);
+      })();
+    }
+  }, []);
 
 
   if (status === "loading") return <p>Loading...</p>;
