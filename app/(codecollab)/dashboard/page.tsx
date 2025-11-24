@@ -21,6 +21,7 @@ import {
   LineChart,
   Line,
   Legend,
+  Tooltip,
 } from "recharts";
 import {
   ChartContainer,
@@ -77,6 +78,15 @@ export default function Dashboard() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [sendingInvite, setSendingInvite] = useState(false);
   const inviteCloseRef = useRef<HTMLButtonElement>(null);
+  const [projectFiles, setProjectFiles] = useState<any[]>([]);
+  const [languagesChartData, setLanguagesChartData] = useState<
+    { name: string; value: number; fill: string }[]
+  >([]);
+
+  const [dynamicConfig, setDynamicConfig] = useState<Record<
+    string,
+    { label: string; color: string }
+  > | null>(null);
 
   const [userProfile, setUserProfile] = useState<{
     name?: string;
@@ -96,6 +106,88 @@ export default function Dashboard() {
 
   const searchParams = useSearchParams();
 
+  const chartColors = [
+    "hsl(var(--chart-1))",
+    "hsl(var(--chart-2))",
+    "hsl(var(--chart-3))",
+    "hsl(var(--chart-4))",
+    "hsl(var(--chart-5))",
+  ];
+
+  function generateDynamicConfig(languages: string[]) {
+    const config: Record<string, { label: string; color: string }> = {};
+
+    languages.forEach((lang, i) => {
+      config[lang.toLowerCase()] = {
+        label: lang,
+        color: chartColors[i % chartColors.length], // rotate colors safely
+      };
+    });
+
+    return config;
+  }
+
+  const fetchLanguages = async (userEmail: string) => {
+    const res = await fetch(`/api/project/files/get?ownerid=${userEmail}`);
+    const data = await res.json();
+
+    console.log("File data", data);
+
+    const languageCount: Record<string, number> = {
+      java: 0,
+      c: 0,
+      cpp: 0,
+      python: 0,
+      others: 0,
+    };
+
+    data.projects.forEach((project: any) => {
+      project.files.forEach((file: any) => {
+        const ext = file.file_extension?.toLowerCase();
+
+        switch (ext) {
+          case "java":
+            languageCount.java++;
+            break;
+          case "c":
+            languageCount.c++;
+            break;
+          case "cpp":
+          case "cc":
+          case "cxx":
+            languageCount.cpp++;
+            break;
+          case "py":
+            languageCount.python++;
+            break;
+          default:
+            languageCount.others++;
+        }
+      });
+    });
+
+    const formatted = [
+      { name: "Java", value: languageCount.java, fill: "var(--color-java)" },
+      { name: "C", value: languageCount.c, fill: "var(--color-c)" },
+      { name: "C++", value: languageCount.cpp, fill: "var(--color-cpp)" },
+      {
+        name: "Python",
+        value: languageCount.python,
+        fill: "var(--color-python)",
+      },
+      {
+        name: "Others",
+        value: languageCount.others,
+        fill: "var(--color-others)",
+      },
+    ];
+
+    setLanguagesChartData(formatted);
+    const uniqueLanguages = languagesChartData.map((l) => l.name);
+    const dynamicConfigData = generateDynamicConfig(uniqueLanguages);
+    setDynamicConfig(dynamicConfigData);
+  };
+
   useEffect(() => {
     const loadStats = async () => {
       const userEmail = localStorage.getItem("userEmail");
@@ -111,6 +203,7 @@ export default function Dashboard() {
         completedPercentage: data.completedPercentage,
         nonCompletedPercentage: data.nonCompletedPercentage,
       });
+      fetchLanguages(userEmail);
 
       setLoading(false);
     };
@@ -232,8 +325,8 @@ export default function Dashboard() {
           createdAt: p.createdAt?.seconds
             ? new Date(p.createdAt.seconds * 1000)
             : p.createdAt
-              ? new Date(p.createdAt)
-              : new Date(),
+            ? new Date(p.createdAt)
+            : new Date(),
           role: "owner",
         }));
         console.log("Owned projects:", list);
@@ -301,7 +394,6 @@ export default function Dashboard() {
       })();
     }
   }, []);
-
 
   if (status === "loading") return <p>Loading...</p>;
   if (status === "unauthenticated")
@@ -514,6 +606,14 @@ export default function Dashboard() {
     "Project D",
   ];
 
+  const projectCompletionPerMonth = [
+    { month: "Jan", completed: 3 },
+    { month: "Feb", completed: 5 },
+    { month: "Mar", completed: 2 },
+    { month: "Apr", completed: 4 },
+    { month: "May", completed: 6 },
+  ];
+
   const router = useRouter();
 
   return (
@@ -540,7 +640,8 @@ export default function Dashboard() {
                   project(s)
                   <br />
                   <span className="text-sm text-muted-foreground">
-                    The recipient will be added with <strong>viewer-only access</strong>.
+                    The recipient will be added with{" "}
+                    <strong>viewer-only access</strong>.
                   </span>
                 </DialogDescription>
               </DialogHeader>
@@ -735,21 +836,21 @@ export default function Dashboard() {
                             data={
                               loading
                                 ? [
-                                  { name: "Completed", value: 0 },
-                                  { name: "Non-Completed", value: 100 },
-                                ]
+                                    { name: "Completed", value: 0 },
+                                    { name: "Non-Completed", value: 100 },
+                                  ]
                                 : [
-                                  {
-                                    name: "Completed",
-                                    value: stats.completedPercentage,
-                                    fill: "var(--color-completed)",
-                                  },
-                                  {
-                                    name: "Non-Completed",
-                                    value: stats.nonCompletedPercentage,
-                                    fill: "var(--color-nonCompleted)",
-                                  },
-                                ]
+                                    {
+                                      name: "Completed",
+                                      value: stats.completedPercentage,
+                                      fill: "var(--color-completed)",
+                                    },
+                                    {
+                                      name: "Non-Completed",
+                                      value: stats.nonCompletedPercentage,
+                                      fill: "var(--color-nonCompleted)",
+                                    },
+                                  ]
                             }
                             dataKey="value"
                             nameKey="name"
@@ -766,109 +867,88 @@ export default function Dashboard() {
 
                 {/* Languages Used */}
                 <Link href="/projectDetails/languages" className="block">
-                  <Card className="transition-transform hover:scale-[1.02] cursor-pointer">
-                    <CardHeader>
-                      <CardTitle className="text-lg">Languages Used</CardTitle>
-                    </CardHeader>
-                    <CardContent className="h-[260px] flex justify-center items-center">
-                      <ChartContainer
-                        config={{
-                          java: { label: "Java", color: "hsl(var(--chart-1))" },
-                          c: { label: "C", color: "hsl(var(--chart-2))" },
-                          cpp: { label: "C++", color: "hsl(var(--chart-3))" },
-                          python: {
-                            label: "Python",
-                            color: "hsl(var(--chart-4))",
-                          },
-                          others: {
-                            label: "Others",
-                            color: "hsl(var(--chart-5))",
-                          },
-                        }}
-                        className="w-full h-full"
-                      >
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={[
-                                {
-                                  name: "Java",
-                                  value: 20,
-                                  fill: "var(--color-java)",
-                                },
-                                {
-                                  name: "C",
-                                  value: 15,
-                                  fill: "var(--color-c)",
-                                },
-                                {
-                                  name: "C++",
-                                  value: 10,
-                                  fill: "var(--color-cpp)",
-                                },
-                                {
-                                  name: "Python",
-                                  value: 30,
-                                  fill: "var(--color-python)",
-                                },
-                                {
-                                  name: "Others",
-                                  value: 25,
-                                  fill: "var(--color-others)",
-                                },
-                              ]}
-                              dataKey="value"
-                              nameKey="name"
-                              outerRadius="80%"
-                              labelLine={false}
-                              label={({ name, percent }) =>
-                                `${name} ${(percent * 100).toFixed(0)}%`
-                              }
-                            />
-                            <ChartTooltip content={<ChartTooltipContent />} />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </ChartContainer>
-                    </CardContent>
-                  </Card>
+                  {languagesChartData && languagesChartData.length > 0 ? (
+                    <Card className="transition-transform hover:scale-[1.02] cursor-pointer">
+                      <CardHeader>
+                        <CardTitle className="text-lg">
+                          Languages Used
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="h-[260px] flex justify-center items-center">
+                        <ChartContainer
+                          config={{
+                            java: {
+                              label: "Java",
+                              color: "hsl(var(--chart-1))",
+                            },
+                            c: { label: "C", color: "hsl(var(--chart-2))" },
+                            cpp: { label: "C++", color: "hsl(var(--chart-3))" },
+                            python: {
+                              label: "Python",
+                              color: "hsl(var(--chart-4))",
+                            },
+                            others: {
+                              label: "Others",
+                              color: "hsl(var(--chart-5))",
+                            },
+                          }}
+                          className="w-full h-full"
+                        >
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={languagesChartData}
+                                dataKey="value"
+                                nameKey="name"
+                                outerRadius="80%"
+                                labelLine={false}
+                                label={({ name, percent }) =>
+                                  `${name} ${(percent * 100).toFixed(0)}%`
+                                }
+                              />
+                              <ChartTooltip content={<ChartTooltipContent />} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </ChartContainer>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg">
+                          Languages Used
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="h-[260px] flex items-center justify-center text-muted-foreground">
+                        No files uploaded yet
+                      </CardContent>
+                    </Card>
+                  )}
                 </Link>
 
-                <Link href="/projectDetails/collaborators" className="block">
+                <Link href="/projectDetails/completionChart" className="block">
                   <Card className="transition-transform hover:scale-[1.02] cursor-pointer">
                     <CardHeader>
                       <CardTitle className="text-lg">
-                        Contribution Activity (Last 14 Days)
+                        Projects Completed This Year
                       </CardTitle>
-                      <CardDescription>
-                        Commit frequency heatmap across all projects
-                      </CardDescription>
+                      <p className="text-muted-foreground text-sm">
+                        Monthly breakdown of completed projects
+                      </p>
                     </CardHeader>
 
-                    <CardContent className="h-[260px] flex items-center justify-center">
+                    <CardContent className="h-[260px]">
                       <ResponsiveContainer width="100%" height="100%">
-                        <div className="grid grid-cols-[repeat(14,1fr)] gap-[4px] w-full h-full">
-                          {activityHeatmapData.map((dayData, dayIndex) => (
-                            <div
-                              key={dayIndex}
-                              className="flex flex-col gap-[4px]"
-                            >
-                              {projectLists.map((proj) => (
-                                <div
-                                  key={proj}
-                                  title={`${proj}: ${dayData[proj]} commits`}
-                                  className="rounded-sm"
-                                  style={{
-                                    backgroundColor: getColor(
-                                      dayData[proj] as number
-                                    ),
-                                    width: "100%",
-                                    aspectRatio: "1 / 1",
-                                  }}
-                                />
-                              ))}
-                            </div>
-                          ))}
-                        </div>
+                        <BarChart data={projectCompletionPerMonth}>
+                          <XAxis dataKey="month" />
+                          <YAxis />
+                          <Tooltip />
+                          <Bar
+                            dataKey="completed"
+                            fill="hsl(var(--chart-4))"
+                            radius={[6, 6, 0, 0]}
+                          />
+                        </BarChart>
                       </ResponsiveContainer>
                     </CardContent>
                   </Card>
