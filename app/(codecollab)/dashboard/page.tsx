@@ -44,7 +44,7 @@ import { Label } from "@/components/ui/label";
 import { FileCode, Folder, Users, Settings, Loader2, Send } from "lucide-react";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import SideBar from "@/components/SideBar";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
@@ -65,6 +65,20 @@ interface ActivityDay {
   "Project D": number;
   [key: string]: string | number;
 }
+
+
+type CompletedProject = {
+  projectId: string;
+  projectTitle: string;
+  completedAt?: { seconds: number };
+};
+
+type CreatedProject = {
+  projectId: string;
+  projectTitle: string;
+  createdAt?: { seconds: number };
+};
+
 
 export default function Dashboard() {
   const { data: session, status } = useSession();
@@ -102,6 +116,16 @@ export default function Dashboard() {
     completedPercentage: 0,
     nonCompletedPercentage: 0,
   });
+
+  const [projectStats, setProjectStats] = useState<{
+    completedProjects: CompletedProject[];
+    createdProjects: CreatedProject[];
+  }>({
+    completedProjects: [],
+    createdProjects: [],
+  });
+
+  const [durationsLoading, setDurationsLoading] = useState(true);
   const [loading, setLoading] = useState(true);
 
   const searchParams = useSearchParams();
@@ -278,6 +302,45 @@ export default function Dashboard() {
       }
     };
 
+    const fetchStats = async () => {
+      const userEmail = localStorage.getItem("userEmail");
+      if (!userEmail) {
+        setDurationsLoading(false);
+        console.warn("fetchStats: no userEmail in localStorage");
+        return;
+      }
+
+      try {
+        setDurationsLoading(true);
+        const res = await fetch(`/api/project/project-stats?userEmail=${encodeURIComponent(userEmail)}`);
+        if (!res.ok) {
+          console.error("project-stats fetch failed", res.status);
+          setDurationsLoading(false);
+          return;
+        }
+
+        const data = await res.json();
+
+        // percentages
+        setStats({
+          completedPercentage: data.completedPercentage ?? 0,
+          nonCompletedPercentage: data.nonCompletedPercentage ?? 0,
+        });
+
+        // project arrays (defensive)
+        setProjectStats({
+          completedProjects: Array.isArray(data.completedProjects) ? data.completedProjects : [],
+          createdProjects: Array.isArray(data.createdProjects) ? data.createdProjects : [],
+        });
+
+      } catch (err) {
+        console.error("fetchStats error:", err);
+      } finally {
+        setDurationsLoading(false);
+      }
+    };
+
+
     // const fetchProjects = async () => {
     //   const ownerid = localStorage.getItem("userEmail");
     //   if (!ownerid) return;
@@ -364,7 +427,7 @@ export default function Dashboard() {
     };
 
     loadAll();
-
+    fetchStats();
     fetchProfile();
     // fetchProjects();
   }, [searchParams]);
@@ -490,6 +553,63 @@ export default function Dashboard() {
       setSendingInvite(false);
     }
   };
+
+  function parseTimestampToMs(raw: any): number | null {
+    if (!raw) return null;
+
+    // Firestore Timestamp (canonical)
+    if (typeof raw === "object" && (raw.seconds || raw._seconds)) {
+      const seconds = raw.seconds ?? raw._seconds;
+      return typeof seconds === "number" ? seconds * 1000 : null;
+    }
+
+    // If backend returned Date-like object
+    if (raw instanceof Date) return raw.getTime();
+
+    // If backend returned ISO string
+    if (typeof raw === "string") {
+      const t = Date.parse(raw);
+      return isNaN(t) ? null : t;
+    }
+
+    // number (milliseconds)
+    if (typeof raw === "number") return raw;
+
+    return null;
+  }
+
+  const projectDurations = useMemo(() => {
+    if (!projectStats.completedProjects.length) return [];
+
+    return projectStats.completedProjects.map((proj) => {
+      const created = projectStats.createdProjects.find(
+        (c) => c.projectId === proj.projectId
+      );
+
+      const createdAtMs = parseTimestampToMs(created?.createdAt);
+      const completedAtMs = parseTimestampToMs(proj?.completedAt);
+
+      // If missing timestamps → return 0 days
+      if (!createdAtMs || !completedAtMs) {
+        return {
+          projectTitle: proj.projectTitle,
+          durationDays: 0,
+        };
+      }
+
+      const durationMs = completedAtMs - createdAtMs;
+      const durationDays = Math.max(
+        0,
+        Math.ceil(durationMs / (1000 * 60 * 60 * 24))
+      );
+
+      return {
+        projectTitle: proj.projectTitle,
+        durationDays,
+      };
+    });
+  }, [projectStats]);
+
 
   const activityHeatmapData: ActivityDay[] = [
     {
@@ -954,6 +1074,75 @@ export default function Dashboard() {
                   </Card>
                 </Link>
               </div>
+            </CardContent>
+            <CardHeader>
+              <CardTitle className="text-lg">Project Completion Time</CardTitle>
+              <CardDescription>
+                Duration taken to complete each project (CreatedAt → CompletedAt)
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="h-[260px]">
+              {durationsLoading ? (
+                <div className="h-full flex items-center justify-center">
+                  <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                  <span className="text-sm text-muted-foreground">Loading project durations...</span>
+                </div>
+              ) : !projectDurations.length ? (
+                <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+                  No completed project durations to show.
+                </div>
+              ) : (
+                <ChartContainer
+                  config={{
+                    duration: {
+                      label: "Duration (days)",
+                      color: "hsl(var(--chart-3))",
+                    },
+                  }}
+                  className="w-full h-full"
+                >
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      layout="vertical"
+                      data={projectDurations}
+                      margin={{ top: 10, right: 20, left: 40, bottom: 10 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+
+                      <XAxis
+                        type="number"
+                        tick={{ fill: "var(--foreground)", fontSize: 11 }}
+                      />
+                      <YAxis
+                        type="category"
+                        dataKey="projectTitle"
+                        width={120}
+                        tick={{ fill: "var(--foreground)", fontSize: 11 }}
+                      />
+
+                      <Tooltip
+                        contentStyle={{
+                          background: "var(--card)",
+                          border: "1px solid var(--border)",
+                          borderRadius: "8px",
+                          color: "var(--foreground)",
+                        }}
+                      />
+
+                      <Bar
+                        dataKey="durationDays"
+                        fill="hsl(var(--chart-3))"
+                        radius={[0, 6, 6, 0]}
+                        barSize={28}
+                        animationDuration={800}
+                        animationEasing="ease-in-out"
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+
+                </ChartContainer>
+              )}
             </CardContent>
           </Card>
 
