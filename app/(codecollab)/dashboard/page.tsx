@@ -88,7 +88,36 @@ export default function Dashboard() {
 
   const [ownedProjects, setOwnedProjects] = useState<Project[]>([]);
 
+  const [stats, setStats] = useState({
+    completedPercentage: 0,
+    nonCompletedPercentage: 0,
+  });
+  const [loading, setLoading] = useState(true);
+
   const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const loadStats = async () => {
+      const userEmail = localStorage.getItem("userEmail");
+      if (!userEmail) return;
+
+      const res = await fetch(
+        `/api/project/status/summary?userEmail=${userEmail}`
+      );
+
+      const data = await res.json();
+
+      setStats({
+        completedPercentage: data.completedPercentage,
+        nonCompletedPercentage: data.nonCompletedPercentage,
+      });
+
+      setLoading(false);
+    };
+
+    loadStats();
+  }, []);
+
   // Store user email locally
   useEffect(() => {
     if (status === "authenticated" && session?.user?.email) {
@@ -703,18 +732,25 @@ export default function Dashboard() {
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
-                            data={[
-                              {
-                                name: "Completed",
-                                value: 70,
-                                fill: "var(--color-completed)",
-                              },
-                              {
-                                name: "Non-Completed",
-                                value: 30,
-                                fill: "var(--color-nonCompleted)",
-                              },
-                            ]}
+                            data={
+                              loading
+                                ? [
+                                  { name: "Completed", value: 0 },
+                                  { name: "Non-Completed", value: 100 },
+                                ]
+                                : [
+                                  {
+                                    name: "Completed",
+                                    value: stats.completedPercentage,
+                                    fill: "var(--color-completed)",
+                                  },
+                                  {
+                                    name: "Non-Completed",
+                                    value: stats.nonCompletedPercentage,
+                                    fill: "var(--color-nonCompleted)",
+                                  },
+                                ]
+                            }
                             dataKey="value"
                             nameKey="name"
                             innerRadius="60%"

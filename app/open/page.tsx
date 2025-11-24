@@ -33,6 +33,9 @@ interface ProjectFile {
   createdAt: any;
 }
 
+
+
+
 export default function ProjectPage() {
   const router = useRouter();
   const params = useSearchParams();
@@ -59,6 +62,51 @@ export default function ProjectPage() {
   const [loadingFiles, setLoadingFiles] = useState(true);
   const [loadingCollab, setLoadingCollab] = useState(true);
   const [loadingRole, setLoadingRole] = useState(true);
+
+  const [completed, setCompleted] = useState(false);
+  const [loadingComplete, setLoadingComplete] = useState(false);
+
+
+
+
+  const handleMarkCompleted = async () => {
+    try {
+      setLoadingComplete(true);
+
+      const userEmail = localStorage.getItem("userEmail");
+      if (!userEmail) return;
+
+      // Check again before marking
+      const check = await fetch(`/api/project/status/get?userEmail=${userEmail}&projectId=${projectId}`);
+      const cdata = await check.json();
+
+      if (cdata.completed) {
+        setCompleted(true);
+        return;
+      }
+
+      // Mark as completed
+      const res = await fetch(`/api/project/status/mark`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userEmail,
+          projectId,
+          projectTitle: projectName,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setCompleted(true);
+      }
+    } catch (err) {
+      console.error("Error completing project", err);
+    } finally {
+      setLoadingComplete(false);
+    }
+  };
 
 
   const { toast } = useToast();
@@ -100,6 +148,18 @@ export default function ProjectPage() {
         setLoadingFiles(false);
       }
     };
+
+    const checkStatus = async () => {
+      const userEmail = localStorage.getItem("userEmail");
+      if (!userEmail) return;
+
+      const res = await fetch(`/api/project/status/get?userEmail=${userEmail}&projectId=${projectId}`);
+      const data = await res.json();
+
+      setCompleted(data.completed);
+    };
+    checkStatus();
+
     fetchFiles();
   }, [projectId]);
 
@@ -287,6 +347,21 @@ export default function ProjectPage() {
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold">Project: {projectName}</h1>
       <p className="text-gray-500">Project ID: {projectId}</p>
+      <div className="flex justify-end">
+        <Button
+          onClick={handleMarkCompleted}
+          disabled={loadingComplete || completed}   // ← FIX
+          className={`text-white ${completed
+            ? "bg-gray-400 cursor-not-allowed"
+            : "bg-green-600 hover:bg-green-700"
+            }`}
+        >
+          {loadingComplete ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : completed ? "Project Completed" : "Mark as Completed"}
+        </Button>
+
+      </div>
 
       {/* File creation */}
       <div className="space-y-2">
