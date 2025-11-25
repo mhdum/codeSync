@@ -71,140 +71,140 @@ export default function SettingsPage() {
   };
 
   return (
-    
-      <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <header className="bg-white border-b p-4 flex justify-between items-center">
-          <h2 className="text-xl font-semibold">Settings</h2>
-          <div className="flex items-center space-x-4">
-            {/* Avatar Skeleton */}
-            {loadingProfile ? (
-              <div className="w-10 h-10 rounded-full bg-gray-200 animate-pulse"></div>
-            ) : userProfile?.image ? (
-              <Avatar>
-                <AvatarImage src={userProfile.image} alt={userProfile.name || "User"} />
-              </Avatar>
-            ) : (
-              <Avatar>
-                <AvatarFallback>{userProfile?.email?.charAt(0).toUpperCase() || "U"}</AvatarFallback>
-              </Avatar>
-            )}
-          </div>
-        </header>
 
-        {/* Settings Content */}
-        <main className="flex-1 p-6 overflow-auto">
-          <div className="grid gap-6">
-            {/* Profile Settings */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Profile Settings</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {/* Avatar + Button Skeleton */}
+    <div className="flex-1 flex flex-col">
+      {/* Header */}
+      <header className="bg-white dark:bg-gray-900 border-b dark:border-gray-700 ... p-4 flex justify-between items-center">
+        <h2 className="text-xl font-semibold">Settings</h2>
+        <div className="flex items-center space-x-4">
+          {/* Avatar Skeleton */}
+          {loadingProfile ? (
+            <div className="w-10 h-10 rounded-full bg-gray-200 animate-pulse"></div>
+          ) : userProfile?.image ? (
+            <Avatar>
+              <AvatarImage src={userProfile.image} alt={userProfile.name || "User"} />
+            </Avatar>
+          ) : (
+            <Avatar>
+              <AvatarFallback>{userProfile?.email?.charAt(0).toUpperCase() || "U"}</AvatarFallback>
+            </Avatar>
+          )}
+        </div>
+      </header>
+
+      {/* Settings Content */}
+      <main className="flex-1 p-6 overflow-auto bg-gray-50 dark:bg-gray-950">
+        <div className="grid gap-6">
+          {/* Profile Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Profile Settings</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* Avatar + Button Skeleton */}
+                {loadingProfile ? (
+                  <div className="flex items-center space-x-4">
+                    <div className="h-16 w-16 rounded-full bg-gray-200 animate-pulse"></div>
+                    <div className="h-10 w-32 bg-gray-200 animate-pulse rounded-md"></div>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-4">
+                    <Avatar className="h-16 w-16">
+                      <AvatarImage src={userProfile?.image || "/placeholder-user.jpg"} alt="User" />
+                      <AvatarFallback>{userProfile?.name?.charAt(0).toUpperCase() || "U"}</AvatarFallback>
+                    </Avatar>
+                    <Button variant="outline">Change Avatar</Button>
+                  </div>
+                )}
+
+                {/* Name Skeleton */}
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name</Label>
                   {loadingProfile ? (
-                    <div className="flex items-center space-x-4">
-                      <div className="h-16 w-16 rounded-full bg-gray-200 animate-pulse"></div>
-                      <div className="h-10 w-32 bg-gray-200 animate-pulse rounded-md"></div>
-                    </div>
+                    <div className="h-10 bg-gray-200 animate-pulse rounded-md"></div>
                   ) : (
-                    <div className="flex items-center space-x-4">
-                      <Avatar className="h-16 w-16">
-                        <AvatarImage src={userProfile?.image || "/placeholder-user.jpg"} alt="User" />
-                        <AvatarFallback>{userProfile?.name?.charAt(0).toUpperCase() || "U"}</AvatarFallback>
-                      </Avatar>
-                      <Button variant="outline">Change Avatar</Button>
-                    </div>
+                    <Input
+                      id="name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Enter your name"
+                    />
                   )}
-
-                  {/* Name Skeleton */}
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Name</Label>
-                    {loadingProfile ? (
-                      <div className="h-10 bg-gray-200 animate-pulse rounded-md"></div>
-                    ) : (
-                      <Input
-                        id="name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="Enter your name"
-                      />
-                    )}
-                  </div>
-
-                  {/* Email Skeleton */}
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    {loadingProfile ? (
-                      <div className="h-10 bg-gray-200 animate-pulse rounded-md"></div>
-                    ) : (
-                      <Input
-                        id="email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                      />
-                    )}
-                  </div>
-
-                  {/* Save Profile Button */}
-                  <Button onClick={handleSaveProfile} disabled={isSaving}>
-                    {isSaving ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin mr-2 inline-block" />
-                        Saving...
-                      </>
-                    ) : (
-                      "Save Profile"
-                    )}
-                  </Button>
                 </div>
-              </CardContent>
-            </Card>
 
-            {/* Notification Preferences */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Notification Preferences</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {/* Here you can add skeletons if notification preferences are loaded via API */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label>Email Notifications</Label>
-                      <p className="text-sm text-gray-500">Receive email updates for project changes</p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label>In-App Notifications</Label>
-                      <p className="text-sm text-gray-500">Receive in-app alerts for collaborator actions</p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Notification Frequency</Label>
-                    <Select defaultValue="daily">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select frequency" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="instant">Instant</SelectItem>
-                        <SelectItem value="daily">Daily</SelectItem>
-                        <SelectItem value="weekly">Weekly</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button>Save Notification Settings</Button>
+                {/* Email Skeleton */}
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  {loadingProfile ? (
+                    <div className="h-10 bg-gray-200 animate-pulse rounded-md"></div>
+                  ) : (
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  )}
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        </main>
-      </div>
-    
+
+                {/* Save Profile Button */}
+                <Button onClick={handleSaveProfile} disabled={isSaving}>
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2 inline-block" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Profile"
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Notification Preferences */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Notification Preferences</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* Here you can add skeletons if notification preferences are loaded via API */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Email Notifications</Label>
+                    <p className="text-sm text-gray-500">Receive email updates for project changes</p>
+                  </div>
+                  <Switch defaultChecked />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>In-App Notifications</Label>
+                    <p className="text-sm text-gray-500">Receive in-app alerts for collaborator actions</p>
+                  </div>
+                  <Switch defaultChecked />
+                </div>
+                <div className="space-y-2">
+                  <Label>Notification Frequency</Label>
+                  <Select defaultValue="daily">
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select frequency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="instant">Instant</SelectItem>
+                      <SelectItem value="daily">Daily</SelectItem>
+                      <SelectItem value="weekly">Weekly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button>Save Notification Settings</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </main>
+    </div>
+
   );
 }
