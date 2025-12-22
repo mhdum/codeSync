@@ -206,6 +206,7 @@ export default function ProjectEditorPage() {
   const [showDiff, setShowDiff] = useState(false);
   const [yjsConnected, setYjsConnected] = useState(false);
   const [editorContent, setEditorContent] = useState<string>(""); // used for diffs/UI, not as controlled editor value
+  const [inputArgs, setInputArgs] = useState("");
 
   const editorRef = useRef<any>(null);
   const ydocRef = useRef<Y.Doc | null>(null);
@@ -960,6 +961,7 @@ export default function ProjectEditorPage() {
           language: extension,
           version: "*",
           files: [{ name: filename, content: code }],
+          stdin: inputArgs,       // 👈 THIS LINE
         }),
       });
       const result = await res.json();
@@ -1030,6 +1032,22 @@ export default function ProjectEditorPage() {
               minimap: { enabled: true },
               // keep other editor options as needed
             }}
+          />
+        </div>
+
+        {/* 🔹 PROGRAM INPUT (ADD HERE) */}
+        <div className="border-b border-gray-700 bg-gray-800 p-3">
+          <label className="block text-xs text-gray-400 mb-1">
+            Program Input (stdin / arguments)
+          </label>
+          <textarea
+            rows={3}
+            value={inputArgs}
+            onChange={(e) => setInputArgs(e.target.value)}
+            placeholder={`Example:
+5
+1 2 3 4 5`}
+            className="w-full bg-black text-green-400 font-mono text-sm p-2 rounded border border-gray-700 focus:outline-none"
           />
         </div>
 
