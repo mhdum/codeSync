@@ -188,6 +188,7 @@ export default function ProjectEditorPage() {
   const filename = params.get("filename") || "untitled";
   const extension = params.get("extension") || "js";
   const fileId = params.get("fileId") || "";
+  const projectId = params.get("projectId") || "";
 
   // userRole param: "viewer" or "editor"
   const userRole = params.get("userRole") || "";
@@ -757,6 +758,87 @@ export default function ProjectEditorPage() {
     }
   };
 
+  // const endSession = async () => {
+  //   try {
+  //     if (!isEditor || isAdmin) {
+  //       console.warn("endSession: user not allowed to end session");
+  //       return;
+  //     }
+
+  //     const userEmail = localStorage.getItem("userEmail") || "unknown";
+
+  //     const finalContent =
+  //       editorRef.current?.getValue?.() ?? currentContent;
+
+  //     const hasChanges = finalContent !== sessionStartContent.current;
+  //     const isNewProposal = finalContent !== lastProposedContent.current;
+
+  //     // 🔹 prepare diff only if needed
+  //     const changes = hasChanges
+  //       ? computeLineChanges(sessionStartContent.current, finalContent)
+  //       : null;
+
+  //     // 🔥 RUN API CALLS IN PARALLEL
+  //     const tasks: Promise<any>[] = [];
+
+  //     // 1️⃣ end session
+  //     tasks.push(
+  //       fetch("/api/session/end", {
+  //         method: "POST",
+  //         headers: { "Content-Type": "application/json" },
+  //         body: JSON.stringify({ fileId, userId: userEmail }),
+  //       })
+  //     );
+
+  //     // 2️⃣ submit proposal (existing behavior)
+  //     if (hasChanges && isNewProposal) {
+  //       tasks.push(
+  //         submitProposal(finalContent).then(() => {
+  //           lastProposedContent.current = finalContent;
+  //         })
+  //       );
+  //     }
+
+  //     // 3️⃣ version control snapshot (🔥 NEW — uses ONLY existing data)
+  //     if (hasChanges) {
+  //       tasks.push(
+  //         fetch("/api/version-control/create", {
+  //           method: "POST",
+  //           headers: { "Content-Type": "application/json" },
+  //           body: JSON.stringify({
+  //             projectId,                 // already exists in your app
+  //             fileId,
+  //             collaboratorId: userEmail,
+  //             collaboratorEmail: userEmail,
+
+  //             originalContent: sessionStartContent.current,
+  //             finalContent,
+  //             changes,
+  //           }),
+  //         })
+  //       );
+  //     }
+
+  //     // 🚀 do not block UI
+  //     Promise.allSettled(tasks).catch(console.error);
+
+  //     // UI updates immediately
+  //     setSessionActive(false);
+  //     editorRef.current?.updateOptions({ readOnly: true });
+
+  //     if (hasChanges && isNewProposal) {
+  //       console.log("✅ session ended — proposal + version stored");
+  //     } else if (!hasChanges) {
+  //       console.log("ℹ️ no changes made during session");
+  //     } else {
+  //       console.log("ℹ️ duplicate proposal skipped");
+  //     }
+  //   } catch (e) {
+  //     console.error("❌ end session failed", e);
+  //   }
+  // };
+
+
   // Admin polls proposals
   useEffect(() => {
     if (!fileId || !isAdmin) return;
@@ -892,6 +974,32 @@ export default function ProjectEditorPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ proposalId: proposal.id, reviewerId: reviewerEmail, reviewerEmail }),
       });
+
+      const collaboratorId = proposal.proposerId ?? proposal.proposerEmail ?? "unknown";
+      const collaboratorEmail = proposal.proposerEmail ?? proposal.proposerId ?? null;
+
+      // Ensure "changes" is present and in the expected shape
+      const changesPayload = proposal.changes ?? computeLineChanges(proposal.originalContent ?? "", proposal.content ?? "");
+
+      const versionRes = await fetch("/api/version-control/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          fileId,
+
+          collaboratorId,
+          collaboratorEmail,
+
+          originalContent: proposal.originalContent ?? "",
+          finalContent: proposal.content ?? "",
+
+          changes: changesPayload,
+          proposalId: proposal.id,
+        }),
+      });
+
+
 
       if (yTextRef.current) {
         yTextRef.current.delete(0, yTextRef.current.length);

@@ -216,10 +216,11 @@ export default function ProjectPage() {
         setUserRole(data.role);
         setIsAdmin(data.isAdmin);
         setIsCollaborator(data.isCollaborator);
-
+        console.log("isAdmin", isAdmin, "loadingRole", loadingRole);
       } finally {
         setLoadingRole(false);
       }
+
     };
 
     checkRole();
@@ -353,7 +354,16 @@ export default function ProjectPage() {
       <h1 className="text-2xl font-bold">Project: {projectName}</h1>
       <p className="text-gray-500">Project ID: {projectId}</p>
       <div className="flex justify-end">
-
+        {!loadingRole && isAdmin && (
+          <Button
+            variant="outline"
+            onClick={() =>
+              router.push(`/version-history?projectId=${projectId}`)
+            }
+          >
+            View Version History
+          </Button>
+        )}
         {/* ADMIN BUTTON */}
         {isAdmin && (
           <Button
