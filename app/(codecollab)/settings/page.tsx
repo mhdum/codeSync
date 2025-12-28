@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEffect, useState } from "react";
 import SideBar from "@/components/SideBar";
+import { toast } from "sonner";
 
 export default function SettingsPage() {
   const [name, setName] = useState("");
@@ -61,10 +62,12 @@ export default function SettingsPage() {
 
       if (!res.ok) throw new Error("Failed to update profile");
 
-      alert("Profile updated successfully");
+      // alert("Profile updated successfully");
+      toast.success("Profile updated successfully");
     } catch (error) {
       console.error(error);
-      alert("Error updating profile");
+      // alert("Error updating profile");
+      toast.error("Error updating profile");
     } finally {
       setIsSaving(false);
     }

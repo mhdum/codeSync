@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
+import { FaGithub, FaGoogle } from "react-icons/fa";
+import { toast } from "sonner";
 
 interface FormData {
   email: string;
@@ -30,10 +32,22 @@ function SignUp() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Password strength regex
+    const passwordRegex =
+      /^(?=.*[0-9])(?=.*[!@#$%^&*])[A-Za-z0-9!@#$%^&*]{8,}$/;
+
+    if (!passwordRegex.test(password)) {
+      setPasswordError(
+        "Password must be at least 8 characters long and include a number and a special character"
+      );
+      return;
+    }
+
     if (password !== confirmPassword) {
       setPasswordError("Passwords do not match");
       return;
     }
+
     setPasswordError("");
     setLoading(true);
 
@@ -48,9 +62,9 @@ function SignUp() {
 
       if (!res.ok) throw new Error(data.error || "Signup failed");
 
-      alert("User registered successfully! Now login.");
+      toast.success("User registered successfully! Now login.");
     } catch (err: any) {
-      alert(err.message || "Failed to register user");
+      toast.error(err.message || "Failed to register user");
     } finally {
       setLoading(false);
     }
@@ -130,6 +144,7 @@ function SignUp() {
             className="flex-1 flex items-center justify-center gap-2"
             onClick={handleGoogleLogin}
           >
+            <FaGoogle className="h-5 w-5" />
             Google
           </Button>
 
@@ -138,6 +153,7 @@ function SignUp() {
             className="flex-1 flex items-center justify-center gap-2"
             onClick={handleGithubLogin}
           >
+            <FaGithub className="h-5 w-5" />
             GitHub
           </Button>
         </div>

@@ -4,7 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/themeProvider";
 
 import ClientLayoutWrapper from "@/components/ClientLayoutWrapper";
-
+import { Toaster } from "@/components/ui/sonner";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -27,7 +27,6 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-   
   return (
     <html lang="en" suppressHydrationWarning>
       <body
@@ -39,7 +38,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {/* <ClientSessionProvider>{children}</ClientSessionProvider> */}
+          {/* Sonner Toaster */}
+          <Toaster position="top-center" richColors closeButton />
+
           <ClientLayoutWrapper>{children}</ClientLayoutWrapper>
         </ThemeProvider>
       </body>

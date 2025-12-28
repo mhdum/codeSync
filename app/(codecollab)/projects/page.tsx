@@ -22,6 +22,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import Link from "next/link";
+import { toast } from "sonner";
 
 type Project = {
   project_id: string;
@@ -63,6 +64,7 @@ export default function Projects() {
     } catch (err) {
       console.error(err);
       alert("Failed to fetch projects");
+      toast.error("Failed to fetch projects");
     } finally {
       setLoading(false);
     }
@@ -91,8 +93,9 @@ export default function Projects() {
       setNewProjectName("");
       fetchProjects();
     } catch (err) {
-      console.error(err);
-      alert("Error creating project");
+      // console.error(err);
+      // alert("Error creating project");
+      toast.error("Error creating project");
     } finally {
       setIsSaving(false);
     }
@@ -116,12 +119,14 @@ export default function Projects() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
-      alert("Collaborators removed");
+      // alert("Collaborators removed");
+      toast.success("Collaborators removed");
       setCollabDialogOpen(false);
 
       fetchProjects();
     } catch (err) {
-      alert("Error removing collaborators");
+      // alert("Error removing collaborators");
+      toast.error("Error removing collaborators");
     } finally {
       setRemoving(false);
     }

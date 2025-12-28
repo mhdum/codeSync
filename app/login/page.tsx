@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
+import { toast } from "sonner";
+import { FaGithub, FaGoogle } from "react-icons/fa";
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
@@ -27,7 +29,10 @@ export function LoginForm() {
       callbackUrl: "/",
     });
 
-    if (res?.error) return alert(res.error);
+    if (res?.error) {
+      toast.error(res.error || "Login failed. Please try again.");
+      return;
+    }
 
     const pendingInvite = localStorage.getItem("pendingInvite");
 
@@ -42,7 +47,8 @@ export function LoginForm() {
         });
 
         const data = await apiRes.json();
-        if (!data.success) console.error("Invite processing failed:", data.message);
+        if (!data.success)
+          console.error("Invite processing failed:", data.message);
       } catch (err) {
         console.error("Error sending invite request:", err);
       }
@@ -113,7 +119,7 @@ export function LoginForm() {
             onClick={handleGoogleLogin}
             aria-label="Login with Google"
           >
-            <svg
+            {/* <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 533.5 544.3"
               className="h-5 w-5"
@@ -123,7 +129,8 @@ export function LoginForm() {
               <path d="M272.1 544.3c75.2 0 138.5-24.9 184.7-67.5l-89.8-69c-24.9 16.8-56.7 26.7-94.9 26.7-72.9 0-134.7-49.2-156.8-115.2h-92.6v72.2c46.3 90.5 141.1 153.8 249.4 153.8z" />
               <path d="M115.3 317.2c-10.2-30.8-10.2-64 0-94.8v-72.2H22.7c-41.2 81.7-41.2 178.6 0 260.3l92.6-72.2z" />
               <path d="M272.1 107.7c39.5-.6 77.4 14 106.3 40.4l79.6-79.6C408.7 24.4 344.4 0 272.1 0 164 0 69.2 63.3 22.9 153.8l92.4 72.2c22.4-66.1 84.3-115.6 156.8-118.3z" />
-            </svg>
+            </svg> */}
+            <FaGoogle className="h-5 w-5" />
             Google
           </Button>
 
@@ -133,14 +140,15 @@ export function LoginForm() {
             onClick={handleGithubLogin}
             aria-label="Login with GitHub"
           >
-            <svg
+            {/* <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
               className="h-5 w-5"
               fill="currentColor"
             >
               <path d="M12 0C5.372 0 0 5.372 0 12c0 5.303 3.438 9.8 8.205 11.387..." />
-            </svg>
+            </svg> */}
+            <FaGithub className="h-5 w-5" />
             GitHub
           </Button>
         </div>

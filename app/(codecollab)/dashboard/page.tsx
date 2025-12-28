@@ -48,6 +48,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import SideBar from "@/components/SideBar";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 interface Project {
   name: string;
@@ -484,7 +485,10 @@ export default function Dashboard() {
 
     const ownerid = localStorage.getItem("userEmail");
     if (!ownerid)
-      return alert("No owner ID found. Make sure you're logged in.");
+    {  
+      toast.error("No owner ID found. Make sure you're logged in.");
+      return ;
+    }
 
     setIsSaving(true);
     try {
@@ -508,10 +512,11 @@ export default function Dashboard() {
 
       setProjectName("Project 1");
       dialogCloseRef.current?.click();
-      alert(`Project "${trimmed}" created successfully!`);
+      toast.success(`Project "${trimmed}" created successfully!`);
+      
     } catch (err) {
       console.error("Create project error:", err);
-      alert("Error creating project. Check console and server logs.");
+      toast.error("Error creating project. Check console and server logs.");
     } finally {
       setIsSaving(false);
     }
@@ -519,12 +524,12 @@ export default function Dashboard() {
 
   // ✉️ Send Invite
   const handleSendInvite = async () => {
-    if (!inviteEmail) return alert("Please enter an email address.");
+    if (!inviteEmail) return toast.error("Please enter an email address.");
     if (selectedProjects.length === 0)
-      return alert("Please select at least one project.");
+      return toast.error("Please select at least one project.");
 
     const senderId = localStorage.getItem("userEmail");
-    if (!senderId) return alert("Missing sender info.");
+    if (!senderId) return toast.error("Missing sender info.");
 
     setSendingInvite(true);
     try {
@@ -546,13 +551,13 @@ export default function Dashboard() {
         if (!res.ok) throw new Error(data?.error || "Failed to send invite");
       }
 
-      alert(`✅ Invitation sent to ${inviteEmail}`);
+      toast.success(`✅ Invitation sent to ${inviteEmail}`);
       setInviteEmail("");
       setSelectedProjects([]);
       inviteCloseRef.current?.click();
     } catch (err: any) {
       console.error("Invite send error:", err);
-      alert(err.message || "Error sending invite.");
+      toast.error(err.message || "Error sending invite.");
     } finally {
       setSendingInvite(false);
     }
