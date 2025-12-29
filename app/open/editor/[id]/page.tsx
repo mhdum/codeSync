@@ -9,6 +9,7 @@ import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { MonacoBinding } from "y-monaco";
 import * as diff from "diff";
+import { toast } from "sonner";
 
 function boolFromParam(p: string | null) {
   return p === "true" || p === "1";
@@ -92,14 +93,14 @@ function revertCollaboratorChanges(currentContent: string, proposal: any): strin
   const theirs = proposal.content as string;
 
   if (currentContent === base) {
-    console.log("🔁 Current content equals proposal base — returning base");
+
     return base;
   }
 
   const parts = diff.diffLines(base, theirs);
   let result = currentContent;
 
-  console.log("🔍 revertCollaboratorChanges: parts count", parts.length);
+
 
   for (let i = parts.length - 1; i >= 0; i--) {
     const part = parts[i];
@@ -110,7 +111,7 @@ function revertCollaboratorChanges(currentContent: string, proposal: any): strin
     if (part.added) {
       const idx = result.indexOf(blockTrimmed);
       if (idx !== -1) {
-        console.log("➖ Removing collaborator-added block at", idx);
+      
         result = result.slice(0, idx) + result.slice(idx + blockTrimmed.length);
       } else {
         const lines = blockTrimmed.split("\n").filter(Boolean);
@@ -125,9 +126,9 @@ function revertCollaboratorChanges(currentContent: string, proposal: any): strin
             }
           }
           if (!removedAny) {
-            console.log("⚠️ Could not find collaborator-added block to remove — preserving admin edits");
+            // console.log("⚠️ Could not find collaborator-added block to remove — preserving admin edits");
           } else {
-            console.log("➖ Removed collaborator block by heuristic");
+            // console.log("➖ Removed collaborator block by heuristic");
           }
         }
       }
@@ -163,13 +164,13 @@ function revertCollaboratorChanges(currentContent: string, proposal: any): strin
         const anchorIdx = result.indexOf(anchorText);
         if (anchorIdx !== -1) {
           const insertPos = anchorIdx + anchorText.length;
-          console.log("➕ Restoring collaborator-removed block after anchor at", insertPos);
+          // console.log("➕ Restoring collaborator-removed block after anchor at", insertPos);
           result = result.slice(0, insertPos) + "\n" + restoreBlock + result.slice(insertPos);
           inserted = true;
         }
       }
       if (!inserted) {
-        console.log("⚠️ Anchor not found — appending restored lines at end");
+        // console.log("⚠️ Anchor not found — appending restored lines at end");
         if (!result.endsWith("\n")) result += "\n";
         result += restoreBlock;
       }
@@ -179,7 +180,7 @@ function revertCollaboratorChanges(currentContent: string, proposal: any): strin
   }
 
   result = result.replace(/\n{3,}/g, "\n\n");
-  console.log("✅ revertCollaboratorChanges complete. result length:", result.length);
+  // console.log("✅ revertCollaboratorChanges complete. result length:", result.length);
   return result;
 }
 
@@ -343,9 +344,10 @@ export default function ProjectEditorPage() {
         setEditorContent(content);
         lastProposedContent.current = content;
         sessionStartContent.current = content;
-        console.log("📥 Initial content loaded", fileId);
+        // console.log("📥 Initial content loaded", fileId);
       } catch (err) {
-        console.error("❌ Error loading file content:", err);
+        // console.error("❌ Error loading file content:", err);
+        toast.error("Failed to load file content.");
         const fallback = "// Start coding here...";
         if (cancelled) return;
         setOriginalContent(fallback);
@@ -379,11 +381,11 @@ export default function ProjectEditorPage() {
     // initialize if admin, viewer, or an editor who started a session
     const shouldInit = isAdmin || isViewer || (isEditor && sessionActive);
     if (!shouldInit) {
-      console.log("🚫 Yjs not initialized (not admin/viewer/editor-in-session)");
+      // console.log("🚫 Yjs not initialized (not admin/viewer/editor-in-session)");
       return;
     }
 
-    console.log("✅ Initializing Yjs room for file:", fileId);
+    // console.log("✅ Initializing Yjs room for file:", fileId);
 
     const ydoc = new Y.Doc();
     ydocRef.current = ydoc;
@@ -396,7 +398,7 @@ export default function ProjectEditorPage() {
     providerRef.current = provider;
 
     provider.on("status", (ev: any) => {
-      console.log("🔌 y-websocket status:", ev.status);
+      // console.log("🔌 y-websocket status:", ev.status);
       setYjsConnected(ev.status === "connected");
     });
 
@@ -417,7 +419,8 @@ export default function ProjectEditorPage() {
         },
       });
     } catch (e) {
-      console.warn("awareness set failed", e);
+      // console.warn("awareness set failed", e);
+      toast.warning("Failed to set user awareness info.");
     }
 
     const yText = ydoc.getText("monaco");
@@ -426,14 +429,15 @@ export default function ProjectEditorPage() {
     const initialToSeed = currentContent ?? originalContent ?? "// Start coding here...";
     const onSync = (isSynced: boolean) => {
       try {
-        console.log("🔁 provider sync:", isSynced, "yText length:", yText.length);
+        // console.log("🔁 provider sync:", isSynced, "yText length:", yText.length);
         if (!seededRef.current) {
           if (yText.length === 0 && initialToSeed) {
             try {
               yText.insert(0, initialToSeed);
-              console.log("📝 seeded Y.Text (post-sync) with initial content");
+              // console.log("📝 seeded Y.Text (post-sync) with initial content");
             } catch (e) {
-              console.warn("seed insert failed", e);
+              // console.warn("seed insert failed", e);
+              toast.warning("Failed to seed initial content.");
             }
           } else {
             const remote = yText.toString();
@@ -446,7 +450,8 @@ export default function ProjectEditorPage() {
           seededRef.current = true;
         }
       } catch (e) {
-        console.error("onSync handler error", e);
+        // console.error("onSync handler error", e);
+        toast.error("Error during Yjs sync.");
       }
     };
 
@@ -459,9 +464,10 @@ export default function ProjectEditorPage() {
             try {
               yText.insert(0, initialToSeed);
               seededRef.current = true;
-              console.log("📝 seeded Y.Text (fallback timeout)");
+              // console.log("📝 seeded Y.Text (fallback timeout)");
             } catch (err) {
-              console.warn("fallback seed failed", err);
+              // console.warn("fallback seed failed", err);
+              toast.warning("Failed to seed initial content.");
             }
           } else {
             const remote = yText.toString();
@@ -518,9 +524,10 @@ export default function ProjectEditorPage() {
             body: JSON.stringify({ content }),
           });
           setOriginalContent(content);
-          console.log("💾 Autosaved file content (leader)");
+          // console.log("💾 Autosaved file content (leader)");
         } catch (err) {
-          console.error("autosave error", err);
+          // console.error("autosave error", err);
+          toast.error("Autosave failed.");
         } finally {
           setIsSaving(false);
         }
@@ -557,7 +564,7 @@ export default function ProjectEditorPage() {
         bindingRef.current = null;
       }
       seededRef.current = false;
-      console.log("🧹 Yjs cleaned for file:", fileId);
+      // console.log("🧹 Yjs cleaned for file:", fileId);
     };
   }, [fileId, isAdmin, isViewer, isEditor, sessionActive]);
 
@@ -576,12 +583,12 @@ export default function ProjectEditorPage() {
     try {
       const model = editor.getModel();
       if (!model) {
-        console.warn("No model to bind yet");
+        // console.warn("No model to bind yet");
         return;
       }
 
       bindingRef.current = new MonacoBinding(yText, model, new Set([editor]), provider.awareness);
-      console.log("✅ MonacoBinding created");
+      // console.log("✅ MonacoBinding created");
 
       const yjsVal = yText.toString();
       // only set editor value if different to avoid cursor jumps
@@ -589,7 +596,8 @@ export default function ProjectEditorPage() {
         try {
           editor.setValue(yjsVal);
         } catch (e) {
-          console.warn("editor.setValue after binding failed", e);
+          // console.warn("editor.setValue after binding failed", e);
+          toast.warning("Failed to set editor content after binding.");
         }
       }
 
@@ -597,13 +605,14 @@ export default function ProjectEditorPage() {
         try {
           (bindingRef.current as any)?.destroy?.();
         } catch (e) {
-          console.warn("binding destroy error", e);
+          // console.warn("binding destroy error", e);
         } finally {
           bindingRef.current = null;
         }
       };
     } catch (err) {
-      console.error("Failed to create MonacoBinding:", err);
+      // console.error("Failed to create MonacoBinding:", err);
+      toast.error("Failed to create editor binding.");
     }
   }, [yjsConnected, fileId]);
 
@@ -733,7 +742,7 @@ export default function ProjectEditorPage() {
   // Editor mount handler
   const handleEditorMount = useCallback(
     (editor: any) => {
-      console.log("📝 Editor mounted");
+      // console.log("📝 Editor mounted");
       editorRef.current = editor;
 
       // set initial content only if editor is empty to avoid overwriting user's typing
@@ -743,7 +752,7 @@ export default function ProjectEditorPage() {
           editor.setValue(editorContent);
         }
       } catch (e) {
-        console.warn("initial setValue failed", e);
+        // console.warn("initial setValue failed", e);
       }
 
       // compute edit permissions: admin always can edit, editors can edit only during session
@@ -790,7 +799,7 @@ export default function ProjectEditorPage() {
             // );
 
             const awareness = provider.awareness;
-            console.log("✅ Immediate MonacoBinding created after mount");
+            // console.log("✅ Immediate MonacoBinding created after mount");
             // editor.onDidChangeCursorPosition((e: any) => {
             //   awareness.setLocalStateField("cursor", {
             //     anchor: model.getOffsetAt(e.position),
@@ -828,7 +837,7 @@ export default function ProjectEditorPage() {
               awareness.setLocalStateField("cursor", null);
             });
           } catch (e) {
-            console.warn("Immediate binding failed", e);
+            // console.warn("Immediate binding failed", e);
           }
         }, 50);
       }
@@ -842,10 +851,10 @@ export default function ProjectEditorPage() {
       const proposerEmail = localStorage.getItem("userEmail") || "unknown";
       const changes = computeLineChanges(sessionStartContent.current, finalContent);
 
-      console.log("📨 submitting proposal with changes:", {
-        added: changes.addedLines.length,
-        removed: changes.removedLines.length,
-      });
+      // console.log("📨 submitting proposal with changes:", {
+        // added: changes.addedLines.length,
+        // removed: changes.removedLines.length,
+      // });
 
       const res = await fetch("/api/changes/propose", {
         method: "POST",

@@ -484,10 +484,9 @@ export default function Dashboard() {
     setError("");
 
     const ownerid = localStorage.getItem("userEmail");
-    if (!ownerid)
-    {  
+    if (!ownerid) {
       toast.error("No owner ID found. Make sure you're logged in.");
-      return ;
+      return;
     }
 
     setIsSaving(true);
@@ -513,7 +512,6 @@ export default function Dashboard() {
       setProjectName("Project 1");
       dialogCloseRef.current?.click();
       toast.success(`Project "${trimmed}" created successfully!`);
-      
     } catch (err) {
       console.error("Create project error:", err);
       toast.error("Error creating project. Check console and server logs.");
@@ -742,13 +740,16 @@ export default function Dashboard() {
     { month: "May", completed: 6 },
   ];
 
-  const langToColorKey: Record<string, string> = {
-    Java: "java",
-    C: "c",
-    "C++": "cpp",
-    Python: "python",
-    Others: "others",
-  };
+ const langToColorKey: Record<string, string> = {
+  JavaScript: "javascript",
+  Python: "python",
+  Java: "java",
+  TypeScript: "typescript",
+  "C++": "cpp",
+  C: "c",
+  SQL: "sql",
+  Others: "others",
+};
 
   const router = useRouter();
 
@@ -1014,19 +1015,37 @@ export default function Dashboard() {
                       <CardContent className="h-[260px] flex justify-center items-center">
                         <ChartContainer
                           config={{
-                            java: {
-                              label: "Java",
+                            javascript: {
+                              label: "JavaScript",
                               color: "hsl(var(--chart-1))",
                             },
-                            c: { label: "C", color: "hsl(var(--chart-2))" },
-                            cpp: { label: "C++", color: "hsl(var(--chart-3))" },
                             python: {
                               label: "Python",
+                              color: "hsl(var(--chart-2))",
+                            },
+                            java: {
+                              label: "Java",
+                              color: "hsl(var(--chart-3))",
+                            },
+                            typescript: {
+                              label: "TypeScript",
                               color: "hsl(var(--chart-4))",
+                            },
+                            cpp: {
+                              label: "C++",
+                              color: "hsl(var(--chart-5))",
+                            },
+                            c: {
+                              label: "C",
+                              color: "hsl(var(--chart-6))",
+                            },
+                            sql: {
+                              label: "SQL",
+                              color: "hsl(var(--chart-7))",
                             },
                             others: {
                               label: "Others",
-                              color: "hsl(var(--chart-5))",
+                              color: "hsl(var(--chart-8))",
                             },
                           }}
                           className="w-full h-full"

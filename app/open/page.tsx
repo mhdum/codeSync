@@ -5,16 +5,26 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Loader2, Pencil, Trash2, Check, X } from "lucide-react";
 
-import { useToast } from "@/hooks/use-toast";
+import { ChevronsUpDown } from "lucide-react";
+
+import { cn } from "@/lib/utils";
+
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { toast } from "sonner";
 
 interface PistonRuntime {
   language: string;
@@ -60,10 +70,11 @@ export default function ProjectPage() {
   const [completed, setCompleted] = useState(false);
   const [loadingComplete, setLoadingComplete] = useState(false);
 
-
   const [editingFileId, setEditingFileId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [processingFileId, setProcessingFileId] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState<string>("");
 
   const handleRenameFile = async (fileId: string) => {
     if (!renameValue.trim()) return;
@@ -90,23 +101,17 @@ export default function ProjectPage() {
         )
       );
 
-      toast({
-        title: "File Renamed ✅",
-        description: "File name updated successfully",
-      });
+      toast.success("File Renamed ✅");
+        
 
       setEditingFileId(null);
     } catch (err: any) {
-      toast({
-        title: "Rename Failed ❌",
-        description: err.message || "Something went wrong",
-        variant: "destructive",
-      });
+      toast.error("Rename Failed ❌");
+        
     } finally {
       setProcessingFileId(null);
     }
   };
-
 
   const handleDeleteFile = async (fileId: string) => {
     const confirmDelete = confirm("Are you sure you want to delete this file?");
@@ -127,16 +132,11 @@ export default function ProjectPage() {
 
       setFiles((prev) => prev.filter((f) => f.id !== fileId));
 
-      toast({
-        title: "File Deleted 🗑️",
-        description: "File deleted successfully",
-      });
+      toast.success("File Deleted 🗑️");
+       
     } catch (err: any) {
-      toast({
-        title: "Delete Failed ❌",
-        description: err.message || "Something went wrong",
-        variant: "destructive",
-      });
+      toast.error("Delete Failed ❌");
+        
     } finally {
       setProcessingFileId(null);
     }
@@ -150,7 +150,9 @@ export default function ProjectPage() {
       if (!userEmail) return;
 
       // Check again before marking
-      const check = await fetch(`/api/project/status/get?userEmail=${userEmail}&projectId=${projectId}`);
+      const check = await fetch(
+        `/api/project/status/get?userEmail=${userEmail}&projectId=${projectId}`
+      );
       const cdata = await check.json();
 
       if (cdata.completed) {
@@ -175,13 +177,12 @@ export default function ProjectPage() {
         setCompleted(true);
       }
     } catch (err) {
-      console.error("Error completing project", err);
+    
+      toast.error("Failed to mark project as completed.");
     } finally {
       setLoadingComplete(false);
     }
   };
-
-  const { toast } = useToast();
 
   // Fetch supported runtimes
   useEffect(() => {
@@ -194,7 +195,7 @@ export default function ProjectPage() {
         const allAliases = data.flatMap((runtime) => runtime.aliases);
         setExtensions(allAliases.sort());
       } catch (error) {
-        console.error("Error fetching runtimes:", error);
+        toast.error("Failed to load file extensions.");
       } finally {
         setLoading(false);
       }
@@ -215,7 +216,7 @@ export default function ProjectPage() {
         const data = await res.json();
         setFiles(data.files || []);
       } catch (err) {
-        console.error("Error fetching files:", err);
+        toast.error("Failed to load project files.");
       } finally {
         setLoadingFiles(false);
       }
@@ -267,11 +268,9 @@ export default function ProjectPage() {
     if (!projectId) return;
 
     const checkRole = async () => {
-
       try {
         setLoadingRole(true);
         const userEmail = localStorage.getItem("userEmail");
-        console.log(`user email ${userEmail}`);
         const res = await fetch("/api/collaborations/check-role", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -282,16 +281,13 @@ export default function ProjectPage() {
         });
 
         const data = await res.json();
-        console.log("data from check role endpoint ");
-        console.log(data);
         setUserRole(data.role);
         setIsAdmin(data.isAdmin);
         setIsCollaborator(data.isCollaborator);
-        console.log("isAdmin", isAdmin, "loadingRole", loadingRole);
+
       } finally {
         setLoadingRole(false);
       }
-
     };
 
     checkRole();
@@ -336,7 +332,6 @@ export default function ProjectPage() {
           role: user.email === selectedEditor ? "editor" : "viewer",
         }))
       );
-
     } catch (err: any) {
       alert("Something went wrong while updating role.");
     } finally {
@@ -357,11 +352,10 @@ export default function ProjectPage() {
 
     try {
 
-      console.log("Current userRole =", userRole);
       setCreating(true);
 
       const userEmail = localStorage.getItem("userEmail") || "unknown";
-      console.log("user email ");
+
       const response = await fetch("/api/files/create", {
         method: "POST",
         headers: {
@@ -380,28 +374,22 @@ export default function ProjectPage() {
         alert(data.error || "Failed to create file.");
         return;
       }
-      console.log("File created with ID:", data.id);
 
       setCreating(false);
       router.push(
         `/open/editor/new?filename=${encodeURIComponent(
           fileName
-        )}&extension=${encodeURIComponent(fileExtension)}&fileId=${data.id
+        )}&extension=${encodeURIComponent(fileExtension)}&fileId=${
+          data.id
         }&projectId=${projectId}&isAdmin=${isAdmin}&userRole=${userRole}`
       );
 
       setTimeout(() => {
-        toast({
-          title: "File Created 🎉",
-          description: `${fileName}.${fileExtension} created successfully!`,
-          duration: 3000,
-        });
+        toast.success("File Created 🎉");
       }, 200);
-
-
     } catch (err) {
-      console.error("Error creating file:", err);
-      alert("Failed to create file.");
+    
+      toast.error("Failed to create file. ");
     } finally {
       setCreating(false);
     }
@@ -424,8 +412,12 @@ export default function ProjectPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Project: {projectName}</h1>
-          <p className="text-sm text-slate-600 dark:text-slate-300">Project ID: {projectId}</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+            Project: {projectName}
+          </h1>
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            Project ID: {projectId}
+          </p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -444,10 +436,11 @@ export default function ProjectPage() {
             <Button
               onClick={handleMarkCompleted}
               disabled={loadingComplete || completed}
-              className={`flex items-center gap-2 ${completed
-                ? "bg-slate-400 text-slate-800 cursor-not-allowed"
-                : "bg-emerald-600 hover:bg-emerald-700 text-white"
-                }`}
+              className={`flex items-center gap-2 ${
+                completed
+                  ? "bg-slate-400 text-slate-800 cursor-not-allowed"
+                  : "bg-emerald-600 hover:bg-emerald-700 text-white"
+              }`}
             >
               {loadingComplete ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -464,7 +457,9 @@ export default function ProjectPage() {
               {loadingComplete ? (
                 <Loader2 className="w-4 h-4 animate-spin text-slate-500" />
               ) : completed ? (
-                <span className="text-emerald-500 font-medium">Project Completed</span>
+                <span className="text-emerald-500 font-medium">
+                  Project Completed
+                </span>
               ) : (
                 ""
               )}
@@ -475,12 +470,21 @@ export default function ProjectPage() {
 
       {/* Create file card */}
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Create New File</h2>
-        <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">Add a file to this project. Files will open in the editor.</p>
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+          Create New File
+        </h2>
+        <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
+          Add a file to this project. Files will open in the editor.
+        </p>
 
         <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="col-span-2">
-            <Label htmlFor="filename" className="text-slate-700 dark:text-slate-200">File Name</Label>
+            <Label
+              htmlFor="filename"
+              className="text-slate-700 dark:text-slate-200"
+            >
+              File Name
+            </Label>
             <Input
               id="filename"
               value={fileName}
@@ -492,7 +496,12 @@ export default function ProjectPage() {
           </div>
 
           <div>
-            <Label htmlFor="fileext" className="text-slate-700 dark:text-slate-200">Extension</Label>
+            <Label
+              htmlFor="fileext"
+              className="text-slate-700 dark:text-slate-200"
+            >
+              Extension
+            </Label>
             <div className="mt-1">
               {loading ? (
                 <div className="flex items-center gap-2 text-slate-500 dark:text-slate-300">
@@ -500,18 +509,49 @@ export default function ProjectPage() {
                   Loading extensions...
                 </div>
               ) : (
-                <Select onValueChange={(val) => setFileExtension(val)}>
-                  <SelectTrigger id="fileext" className="w-full">
-                    <SelectValue placeholder="Select extension" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {extensions.map((ext, idx) => (
-                      <SelectItem key={idx} value={ext}>
-                        .{ext}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover open={open} onOpenChange={setOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={open}
+                      className="w-full justify-between"
+                    >
+                      {value ? `.${value}` : "Select extension"}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput placeholder="Search extension..." />
+                      <CommandList>
+                        <CommandEmpty>No extension found.</CommandEmpty>
+                        <CommandGroup>
+                          {extensions.map((ext) => (
+                            <CommandItem
+                              key={ext}
+                              value={ext}
+                              onSelect={(currentValue) => {
+                                setValue(currentValue);
+                                setFileExtension(currentValue);
+                                setOpen(false);
+                              }}
+                            >
+                              .{ext}
+                              <Check
+                                className={cn(
+                                  "ml-auto h-4 w-4",
+                                  value === ext ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               )}
             </div>
           </div>
@@ -533,17 +573,24 @@ export default function ProjectPage() {
 
       {/* Files list */}
       <div>
-        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Project Files</h2>
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+          Project Files
+        </h2>
 
         <div className="mt-4">
           {loadingFiles ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-12 w-full rounded-lg bg-slate-200 dark:bg-slate-700 animate-pulse" />
+                <div
+                  key={i}
+                  className="h-12 w-full rounded-lg bg-slate-200 dark:bg-slate-700 animate-pulse"
+                />
               ))}
             </div>
           ) : files.length === 0 ? (
-            <p className="text-slate-600 dark:text-slate-300">No files created yet.</p>
+            <p className="text-slate-600 dark:text-slate-300">
+              No files created yet.
+            </p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {files.map((file) => (
@@ -605,7 +652,9 @@ export default function ProjectPage() {
                             file.file_name
                           )}&extension=${encodeURIComponent(
                             file.file_extension
-                          )}&fileId=${file.id}&projectId=${projectId}&isAdmin=${isAdmin}&userRole=${userRole}`
+                          )}&fileId=${
+                            file.id
+                          }&projectId=${projectId}&isAdmin=${isAdmin}&userRole=${userRole}`
                         )
                       }
                     >
@@ -643,7 +692,6 @@ export default function ProjectPage() {
                     )}
                   </div>
                 </div>
-
               ))}
             </div>
           )}
@@ -653,7 +701,9 @@ export default function ProjectPage() {
       {/* Manage collaborators (admin only) */}
       {isAdmin && (
         <div className="mt-6 p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Manage Collaborators</h2>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+            Manage Collaborators
+          </h2>
 
           {loadingCollab ? (
             <div className="space-y-3 mt-3">
@@ -665,19 +715,29 @@ export default function ProjectPage() {
               ))}
             </div>
           ) : collaborators.length === 0 ? (
-            <p className="text-slate-600 dark:text-slate-300 mt-2">No collaborators found.</p>
+            <p className="text-slate-600 dark:text-slate-300 mt-2">
+              No collaborators found.
+            </p>
           ) : (
             <>
               <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                Select one collaborator as <b>Editor</b>. Others will become viewers.
+                Select one collaborator as <b>Editor</b>. Others will become
+                viewers.
               </p>
 
               <div className="mt-4 space-y-2">
                 {collaborators.map((c) => (
-                  <div key={c.email} className="flex items-center justify-between">
+                  <div
+                    key={c.email}
+                    className="flex items-center justify-between"
+                  >
                     <div>
-                      <div className="text-sm text-slate-900 dark:text-slate-100">{c.email}</div>
-                      <div className="text-xs text-slate-600 dark:text-slate-300">{c.role || 'viewer'}</div>
+                      <div className="text-sm text-slate-900 dark:text-slate-100">
+                        {c.email}
+                      </div>
+                      <div className="text-xs text-slate-600 dark:text-slate-300">
+                        {c.role || "viewer"}
+                      </div>
                     </div>
 
                     <div>
@@ -700,7 +760,9 @@ export default function ProjectPage() {
                   onClick={updateRole}
                   disabled={savingRole}
                 >
-                  {savingRole && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {savingRole && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
                   Save
                 </Button>
               </div>
