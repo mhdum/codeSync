@@ -587,7 +587,7 @@ export default function ProjectPage() {
                           {file.file_name}.{file.file_extension}
                         </div>
                         <div className="text-xs text-slate-600 dark:text-slate-300 mt-1">
-                          {file.createdBy || "unknown"} • {formatDate(file.createdAt)}
+                          {/* {file.createdBy || "unknown"} • {formatDate(file.createdAt)} */}
                         </div>
                       </>
                     )}

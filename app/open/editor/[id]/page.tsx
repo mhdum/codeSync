@@ -222,6 +222,98 @@ export default function ProjectEditorPage() {
   const sessionStartContent = useRef<string>("");
   const seededRef = useRef<boolean>(false);
 
+  // const remoteDecorationsRef = useRef<Map<number, string[]>>(new Map());
+  // const remoteWidgetsRef = useRef<Map<number, any>>(new Map());
+  // const remoteColorsRef = useRef<Map<number, string>>(new Map());
+
+
+
+  const pickColorFor = (idOrEmail: string) => {
+    // deterministic hash -> color
+    let hash = 0;
+    for (let i = 0; i < idOrEmail.length; i++) hash = (hash << 5) - hash + idOrEmail.charCodeAt(i);
+    const color = `#${((hash >>> 0) & 0xffffff).toString(16).padStart(6, "0")}`;
+    return color;
+  };
+
+
+  // const upsertOverlayWidget = (
+  //   clientId: number,
+  //   pos: any,
+  //   label: string,
+  //   color: string
+  // ) => {
+  //   const editor = editorRef.current;
+  //   if (!editor || !pos) return;
+
+  //   // remove old widget
+  //   const existing = remoteWidgetsRef.current.get(clientId);
+  //   if (existing) {
+  //     try { editor.removeOverlayWidget(existing); } catch { }
+  //   }
+
+  //   const dom = document.createElement("div");
+  //   dom.className = "remote-cursor-widget";
+
+  //   const caret = document.createElement("div");
+  //   caret.className = "remote-caret";
+  //   caret.style.borderLeftColor = color;
+
+  //   const labelDom = document.createElement("div");
+  //   labelDom.className = "remote-cursor-label";
+  //   labelDom.textContent = label;
+  //   labelDom.style.background = color;
+
+  //   dom.appendChild(caret);
+  //   dom.appendChild(labelDom);
+
+  //   const widget = {
+  //     getId: () => `remote-cursor-${clientId}`,
+  //     getDomNode: () => dom,
+
+  //     // 🔴 THIS WAS THE BUG
+  //     getPosition: () => ({
+  //       position: pos,
+  //       preference: [
+  //         (window as any).monaco.editor.OverlayWidgetPositionPreference.TOP_CENTER
+  //       ]
+  //     }),
+  //   };
+
+  //   editor.addOverlayWidget(widget);
+  //   remoteWidgetsRef.current.set(clientId, widget);
+  // };
+
+
+  // const removeRemoteClient = (clientId: number) => {
+  //   try {
+  //     const editor = editorRef.current;
+  //     if (!editor) return;
+
+  //     // remove decorations
+  //     const oldDec = remoteDecorationsRef.current.get(clientId) || [];
+  //     if (oldDec.length) {
+  //       try {
+  //         editor.deltaDecorations(oldDec, []);
+  //       } catch (e) { }
+  //       remoteDecorationsRef.current.delete(clientId);
+  //     }
+
+  //     // remove widget
+  //     const widget = remoteWidgetsRef.current.get(clientId);
+  //     if (widget) {
+  //       try { editor.removeOverlayWidget(widget); } catch (e) { }
+  //       remoteWidgetsRef.current.delete(clientId);
+  //     }
+
+  //     // remove stored color
+  //     remoteColorsRef.current.delete(clientId);
+  //   } catch (e) {
+  //     console.warn("removeRemoteClient error", e);
+  //   }
+  // };
+
+
   // Helper: wait for Yjs to seed/sync or timeout
   const waitForYjsSeed = async (timeoutMs = 2500) => {
     const start = Date.now();
@@ -318,7 +410,11 @@ export default function ProjectEditorPage() {
           isViewer,
           sessionActive,
         },
-        cursor: null, // required for monaco remote cursor
+        cursor: {
+          anchor: 0,
+          head: 0,
+          name: userEmail.split("@")[0],
+        },
       });
     } catch (e) {
       console.warn("awareness set failed", e);
@@ -471,9 +567,12 @@ export default function ProjectEditorPage() {
     const yText = yTextRef.current;
     const provider = providerRef.current;
 
+
+
     if (!editor || !yText || !provider) return;
     if (bindingRef.current) return;
-
+    const awareness = provider.awareness;
+    if (!awareness) return;
     try {
       const model = editor.getModel();
       if (!model) {
@@ -507,6 +606,129 @@ export default function ProjectEditorPage() {
       console.error("Failed to create MonacoBinding:", err);
     }
   }, [yjsConnected, fileId]);
+
+  // useEffect(() => {
+
+  //   if (!bindingRef.current) return;
+  //   const editor = editorRef.current;
+  //   const provider = providerRef.current;
+
+  //   if (!editor || !provider) return;
+
+  //   const awareness = provider.awareness;
+
+  //   const updateCursor = () => {
+  //     const selection = editor.getSelection();
+  //     if (!selection) return;
+
+  //     const model = editor.getModel();
+  //     if (!model) return;
+
+  //     const anchor = model.getOffsetAt(selection.getStartPosition());
+  //     const head = model.getOffsetAt(selection.getEndPosition());
+
+  //     awareness.setLocalStateField("cursor", {
+  //       anchor,
+  //       head,
+  //       name:
+  //         awareness.getLocalState()?.user?.name ||
+  //         "anonymous",
+  //     });
+  //   };
+
+  //   const disposable = editor.onDidChangeCursorSelection(updateCursor);
+  //   updateCursor(); // initial
+
+  //   return () => {
+  //     disposable.dispose();
+  //   };
+  // }, [yjsConnected, fileId]);
+
+  // useEffect(() => {
+  //   const provider = providerRef.current;
+  //   const editor = editorRef.current;
+
+  //   if (!provider || !editor) return;
+
+  //   const awareness = provider.awareness;
+  //   if (!awareness) return;
+
+  //   const applyAwareness = () => {
+  //     const model = editor.getModel();
+  //     if (!model) return;
+
+  //     const states = Array.from(awareness.getStates().entries());
+  //     const localEmail = localStorage.getItem("userEmail") || "anonymous";
+  //     const presentClientIds = new Set<number>();
+
+  //     for (const [clientId, state] of states as any) {
+  //       if (!state) continue;
+
+  //       const cursor = state.cursor;
+  //       const user = state.user || {};
+  //       const ownerId = user.id || String(clientId);
+
+  //       if (clientId === provider.awareness.clientID) continue;
+
+
+  //       presentClientIds.add(clientId);
+
+  //       const color =
+  //         remoteColorsRef.current.get(clientId) || pickColorFor(ownerId);
+  //       remoteColorsRef.current.set(clientId, color);
+
+  //       if (!cursor) {
+  //         removeRemoteClient(clientId);
+  //         continue;
+  //       }
+
+  //       const anchor = Math.min(cursor.anchor, model.getValueLength());
+  //       const head = Math.min(cursor.head, model.getValueLength());
+
+  //       const start = Math.min(anchor, head);
+  //       const end = Math.max(anchor, head);
+
+  //       const newDecs =
+  //         end > start
+  //           ? [
+  //             {
+  //               range: new (window as any).monaco.Range(
+  //                 model.getPositionAt(start).lineNumber,
+  //                 model.getPositionAt(start).column,
+  //                 model.getPositionAt(end).lineNumber,
+  //                 model.getPositionAt(end).column
+  //               ),
+  //               options: { inlineClassName: "remote-selection" },
+  //             },
+  //           ]
+  //           : [];
+
+  //       const oldIds = remoteDecorationsRef.current.get(clientId) || [];
+  //       const newIds = editor.deltaDecorations(oldIds, newDecs);
+  //       remoteDecorationsRef.current.set(clientId, newIds);
+
+  //       upsertOverlayWidget(
+  //         clientId,
+  //         model.getPositionAt(head),
+  //         (cursor.name || user.name || ownerId).split("@")[0],
+  //         color
+  //       );
+  //     }
+
+  //     for (const cid of Array.from(remoteDecorationsRef.current.keys())) {
+  //       if (!presentClientIds.has(cid)) removeRemoteClient(cid);
+  //     }
+  //   };
+
+  //   awareness.on("update", applyAwareness);
+  //   applyAwareness();
+
+  //   return () => {
+  //     awareness.off("update", applyAwareness);
+  //     remoteDecorationsRef.current.forEach((_, cid) => removeRemoteClient(cid));
+  //   };
+  // }, [yjsConnected, fileId]);
+
 
   // Editor mount handler
   const handleEditorMount = useCallback(
@@ -560,24 +782,47 @@ export default function ProjectEditorPage() {
           try {
             const model = editor.getModel();
             if (!model) return;
-            bindingRef.current = new MonacoBinding(
-              yText,
-              model,
-              new Set([editor]),
-              provider.awareness
-            );
+            // bindingRef.current = new MonacoBinding(
+            //   yText,
+            //   model,
+            //   new Set([editor]),
+            //   provider.awareness
+            // );
 
             const awareness = provider.awareness;
             console.log("✅ Immediate MonacoBinding created after mount");
-            editor.onDidChangeCursorPosition((e: any) => {
-              awareness.setLocalStateField("cursor", {
-                anchor: model.getOffsetAt(e.position),
-                head: model.getOffsetAt(e.position),
-                name: localStorage.getItem("userEmail") || "unknown",
-                color: "#" + Math.floor(Math.random() * 16777215).toString(16),
-              });
-            });
+            // editor.onDidChangeCursorPosition((e: any) => {
+            //   awareness.setLocalStateField("cursor", {
+            //     anchor: model.getOffsetAt(e.position),
+            //     head: model.getOffsetAt(e.position),
+            //     name: localStorage.getItem("userEmail") || "unknown",
+            //     color: "#" + Math.floor(Math.random() * 16777215).toString(16),
+            //   });
+            // });
 
+
+            // editor.onDidChangeCursorPosition((e: any) => {
+            //   const email = localStorage.getItem("userEmail") || "U";
+            //   const initial = email.charAt(0).toUpperCase();
+            //   console.log("🖋️ updating cursor position for", initial);
+            //   awareness.setLocalStateField("cursor", {
+            //     anchor: model.getOffsetAt(e.position),
+            //     head: model.getOffsetAt(e.position),
+            //     user: {
+            //       name: initial,
+            //       color: "#8282eaff",
+            //     },
+            //   });
+            // });
+
+            // Run ONCE after provider is ready
+            const email = localStorage.getItem("userEmail") || "U";
+            const initial = email.charAt(0).toUpperCase();
+
+            awareness.setLocalStateField("user", {
+              name: initial,
+              color: "#8282eaff",
+            });
             // clear cursor when user leaves the page
             window.addEventListener("beforeunload", () => {
               awareness.setLocalStateField("cursor", null);
