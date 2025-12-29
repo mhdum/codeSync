@@ -1,4 +1,4 @@
-let users: { email: string; password: string }[] = []
+const users: { email: string; password: string }[] = []
 
 export const saveUser = (user: { email: string; password: string }) => {
   users.push(user)

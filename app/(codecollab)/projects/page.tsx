@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/table";
 import { Trash, Plus, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import {
   Dialog,
   DialogContent,
@@ -62,8 +61,8 @@ export default function Projects() {
       const data = await res.json();
       setProjects(data.projects || []);
     } catch (err) {
-      console.error(err);
-      alert("Failed to fetch projects");
+      // console.error(err);
+      // alert("Failed to fetch projects");
       toast.error("Failed to fetch projects");
     } finally {
       setLoading(false);

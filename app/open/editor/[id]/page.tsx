@@ -391,7 +391,7 @@ export default function ProjectEditorPage() {
     ydocRef.current = ydoc;
 
     const provider = new WebsocketProvider(
-      `wss://yjs-websocket-server-hfb8.onrender.com/collaboration/${fileId}`,
+      `${process.env.NEXT_PUBLIC_YJS_WS_URL}/collaboration/${fileId}`,
       "",
       ydoc
     );
@@ -606,6 +606,7 @@ export default function ProjectEditorPage() {
           (bindingRef.current as any)?.destroy?.();
         } catch (e) {
           // console.warn("binding destroy error", e);
+          toast.warning("Failed to destroy editor binding.");
         } finally {
           bindingRef.current = null;
         }
@@ -753,6 +754,7 @@ export default function ProjectEditorPage() {
         }
       } catch (e) {
         // console.warn("initial setValue failed", e);
+        toast.warning("Failed to set initial editor content.");
       }
 
       // compute edit permissions: admin always can edit, editors can edit only during session
@@ -838,6 +840,7 @@ export default function ProjectEditorPage() {
             });
           } catch (e) {
             // console.warn("Immediate binding failed", e);
+            toast.warning("Failed to create editor binding.");
           }
         }, 50);
       }
@@ -874,12 +877,14 @@ export default function ProjectEditorPage() {
         const json = await res.json();
         setUserProposalStatus({ status: "pending", proposalId: json.id });
         lastProposedContent.current = finalContent;
-        console.log("✅ proposal saved id:", json.id);
+        // console.log("✅ proposal saved id:", json.id);
       } else {
-        console.error("❌ proposal failed", await res.text());
+        // console.error("❌ proposal failed", await res.text());
+        toast.error("Failed to submit proposal.");
       }
     } catch (err) {
-      console.error("❌ proposal error", err);
+      // console.error("❌ proposal error", err);
+      toast.error("Error submitting proposal.");
     }
   };
 
@@ -887,7 +892,8 @@ export default function ProjectEditorPage() {
   const startSession = async () => {
     try {
       if (!isEditor || isAdmin) {
-        console.warn("startSession: user not allowed to start session");
+        // console.warn("startSession: user not allowed to start session");
+        toast
         return;
       }
 
@@ -903,28 +909,30 @@ export default function ProjectEditorPage() {
 
       if (yjsReady && yTextRef.current) {
         authoritativeBase = yTextRef.current.toString();
-        console.log("startSession: using yText as authoritative base (length)", authoritativeBase.length);
+        // console.log("startSession: using yText as authoritative base (length)", authoritativeBase.length);
       } else {
         try {
           const fileRes = await fetch(`/api/files/${fileId}`);
           if (fileRes.ok) {
             const fileData = await fileRes.json();
             authoritativeBase = fileData?.content ?? "";
-            console.log("startSession: fetched server file as fallback (length)", authoritativeBase.length);
+            // console.log("startSession: fe.tched server file as fallback (length)", authoritativeBase.length);
             if (yTextRef.current && yTextRef.current.length === 0 && authoritativeBase) {
               try {
                 yTextRef.current.insert(0, authoritativeBase);
                 seededRef.current = true;
               } catch (e) {
-                console.warn("seed yText fallback failed", e);
+                // console.warn("seed yText fallback failed", e);
+                toast.warning("Failed to seed initial content.");
               }
             }
           } else {
-            console.warn("startSession: fetch server file failed; will use editor value");
+            // console.warn("startSession: fetch server file failed; will use editor value");
+            toast.warning("Failed to fetch latest file content.");
             authoritativeBase = editorRef.current?.getValue?.() ?? currentContent;
           }
         } catch (e) {
-          console.warn("startSession: error fetching server file", e);
+          // console.warn("startSession: error fetching server file", e);
           authoritativeBase = editorRef.current?.getValue?.() ?? currentContent;
         }
       }
@@ -939,7 +947,8 @@ export default function ProjectEditorPage() {
           editorRef.current?.setValue(sessionStartContent.current);
         }
       } catch (e) {
-        console.warn("editor setValue failed", e);
+        // console.warn("editor setValue failed", e);
+        toast.warning("Failed to set editor content.");
       }
 
       if (yTextRef.current) {
@@ -949,9 +958,10 @@ export default function ProjectEditorPage() {
             yTextRef.current.delete(0, yTextRef.current.length);
             yTextRef.current.insert(0, sessionStartContent.current);
             seededRef.current = true;
-            console.log("startSession: synced yText to authoritative base");
+            // console.log("startSession: synced yText to authoritative base");
           } catch (e) {
-            console.warn("startSession: syncing yText failed", e);
+            // console.warn("startSession: syncing yText failed", e);
+            toast.warning("Failed to sync collaborative content.");
           }
         }
       }
@@ -966,9 +976,10 @@ export default function ProjectEditorPage() {
         editorRef.current?.updateOptions({ readOnly: false });
       } catch { }
 
-      console.log("✅ session started and base established (length):", sessionStartContent.current.length);
+      // console.log("✅ session started and base established (length):", sessionStartContent.current.length);
     } catch (e) {
-      console.error("❌ start session failed", e);
+      // console.error("❌ start session failed", e);
+      toast.error("Failed to start editing session.");
       setSessionActive(true);
       try {
         editorRef.current?.updateOptions({ readOnly: false });
@@ -979,7 +990,8 @@ export default function ProjectEditorPage() {
   const endSession = async () => {
     try {
       if (!isEditor || isAdmin) {
-        console.warn("endSession: user not allowed to end session");
+        // console.warn("endSession: user not allowed to end session");
+        toast.warning("You are not allowed to end the session.");
         return;
       }
 
@@ -1001,14 +1013,15 @@ export default function ProjectEditorPage() {
       if (hasChanges && isNewProposal) {
         await submitProposal(finalContent);
         lastProposedContent.current = finalContent;
-        console.log("✅ session ended with changes - proposal submitted");
+        // console.log("✅ session ended with changes - proposal submitted");
       } else if (!hasChanges) {
-        console.log("ℹ️ no changes made during session - skipping proposal");
+        // console.log("ℹ️ no changes made during session - skipping proposal");
       } else {
-        console.log("ℹ️ same content already proposed - skipping duplicate");
+        // console.log("ℹ️ same content already proposed - skipping duplicate");
       }
     } catch (e) {
-      console.error("❌ end session failed", e);
+      // console.error("❌ end session failed", e);
+      toast.error("Failed to end editing session.");
     }
   };
 
@@ -1115,7 +1128,8 @@ export default function ProjectEditorPage() {
 
         setProposals(unique);
       } catch (e) {
-        console.error("Failed to fetch proposals", e);
+        // console.error("Failed to fetch proposals", e);
+        toast.error("Failed to fetch proposals.");
       }
     };
 
@@ -1157,7 +1171,7 @@ export default function ProjectEditorPage() {
                 yTextRef.current.insert(0, newContent);
               }
             }
-            console.log("✅ Proposal approved - content updated");
+            // console.log("✅ Proposal approved - content updated");
           } else if (json.status === "rejected") {
             try {
               const propRes = await fetch(`/api/changes/get?proposalId=${userProposalStatus.proposalId}`);
@@ -1183,9 +1197,10 @@ export default function ProjectEditorPage() {
                 setEditorContent(contentAfterRejection);
                 if (editorRef.current) editorRef.current.setValue(contentAfterRejection);
 
-                console.log("❌ Proposal rejected (collaborator) - smart revert applied.");
+                // console.log("❌ Proposal rejected (collaborator) - smart revert applied.");
               } else {
-                console.warn("Could not fetch proposal object for rejection; reverting to session start as fallback.");
+                // console.warn("Could not fetch proposal object for rejection; reverting to session start as fallback.");
+                toast.warning("Failed to fetch proposal for rejection; reverting to session start.");
                 if (editorRef.current) {
                   editorRef.current.setValue(sessionStartContent.current);
                   setEditorContent(sessionStartContent.current);
@@ -1193,12 +1208,14 @@ export default function ProjectEditorPage() {
                 }
               }
             } catch (err) {
-              console.error("Error handling rejection for collaborator:", err);
+              // console.error("Error handling rejection for collaborator:", err);
+              toast.error("Error processing proposal rejection.");
             }
           }
         }
       } catch (e) {
-        console.error("checkStatus failed", e);
+        // console.error("checkStatus failed", e);
+        toast.error("Failed to check proposal status.");
       }
     };
 
@@ -1266,9 +1283,10 @@ export default function ProjectEditorPage() {
       setProposals((prev) => prev.filter((p) => p.id !== proposal.id));
       if (editorRef.current && editorRef.current.getValue() !== contentToApply) editorRef.current.setValue(contentToApply);
 
-      console.log("✅ Proposal approved and changes applied");
+      // console.log("✅ Proposal approved and changes applied");
     } catch (e) {
-      console.error("approve failed", e);
+      // console.error("approve failed", e);
+      toast.error("Failed to approve proposal.");
     }
   };
 
@@ -1303,9 +1321,10 @@ export default function ProjectEditorPage() {
       if (editorRef.current) editorRef.current.setValue(contentAfterRejection);
 
       setProposals((prev) => prev.filter((p) => p.id !== proposal.id));
-      console.log("❌ Proposal rejected - only collaborator's changes removed, admin changes preserved");
+      // console.log("❌ Proposal rejected - only collaborator's changes removed, admin changes preserved");
     } catch (e) {
-      console.error("reject failed", e);
+      // console.error("reject failed", e);
+      toast.error("Failed to reject proposal.");
     }
   };
 
@@ -1329,7 +1348,8 @@ export default function ProjectEditorPage() {
       const result = await res.json();
       setOutput(result.run?.output || "No output");
     } catch (err) {
-      console.error("Run error", err);
+      // console.error("Run error", err);
+      toast.error("Error running code.");
       setOutput("Error running code");
     } finally {
       setIsRunning(false);

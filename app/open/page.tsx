@@ -6,11 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Pencil, Trash2, Check, X } from "lucide-react";
-
 import { ChevronsUpDown } from "lucide-react";
-
 import { cn } from "@/lib/utils";
-
 import {
   Command,
   CommandEmpty,
@@ -61,7 +58,7 @@ export default function ProjectPage() {
   const [userRole, setUserRole] = useState<"editor" | "viewer" | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  const [isCollaborator, setIsCollaborator] = useState(false);
+  // const [isCollaborator, setIsCollaborator] = useState(false);
 
   const [loadingFiles, setLoadingFiles] = useState(true);
   const [loadingCollab, setLoadingCollab] = useState(true);
@@ -171,7 +168,7 @@ export default function ProjectPage() {
         }),
       });
 
-      const data = await res.json();
+  
 
       if (res.ok) {
         setCompleted(true);
@@ -283,7 +280,7 @@ export default function ProjectPage() {
         const data = await res.json();
         setUserRole(data.role);
         setIsAdmin(data.isAdmin);
-        setIsCollaborator(data.isCollaborator);
+        // setIsCollaborator(data.isCollaborator);
 
       } finally {
         setLoadingRole(false);
@@ -396,16 +393,7 @@ export default function ProjectPage() {
   };
 
   // Helper: format date safely
-  const formatDate = (d: any) => {
-    try {
-      if (!d) return "";
-      const dt = new Date(d);
-      if (isNaN(dt.getTime())) return String(d);
-      return dt.toLocaleString();
-    } catch {
-      return String(d);
-    }
-  };
+
 
   return (
     <div className="p-6 space-y-6 max-w-5xl mx-auto">

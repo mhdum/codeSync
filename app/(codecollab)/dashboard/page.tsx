@@ -8,7 +8,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
 import {
   Bar,
   BarChart,
@@ -18,9 +18,6 @@ import {
   XAxis,
   YAxis,
   ResponsiveContainer,
-  LineChart,
-  Line,
-  Legend,
   Tooltip,
 } from "recharts";
 import {
@@ -41,11 +38,10 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FileCode, Folder, Users, Settings, Loader2, Send } from "lucide-react";
+import { Loader2, Send } from "lucide-react";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import SideBar from "@/components/SideBar";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -79,33 +75,35 @@ type CreatedProject = {
   createdAt?: { seconds: number };
 };
 
+
+
 export default function Dashboard() {
   const { data: session, status } = useSession();
   const [projectName, setProjectName] = useState("Project 1");
   const [error, setError] = useState("");
   const [projects, setProjects] = useState<Project[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
-  const [loadingProfile, setLoadingProfile] = useState(true);
+  // const [loadingProfile, setLoadingProfile] = useState(true);
   const dialogCloseRef = useRef<HTMLButtonElement>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [sendingInvite, setSendingInvite] = useState(false);
   const inviteCloseRef = useRef<HTMLButtonElement>(null);
-  const [projectFiles, setProjectFiles] = useState<any[]>([]);
+  // const [projectFiles, setProjectFiles] = useState<any[]>([]);
   const [languagesChartData, setLanguagesChartData] = useState<
     { name: string; value: number; fill: string }[]
   >([]);
 
-  const [dynamicConfig, setDynamicConfig] = useState<Record<
-    string,
-    { label: string; color: string }
-  > | null>(null);
+  // const [dynamicConfig, setDynamicConfig] = useState<Record<
+  //   string,
+  //   { label: string; color: string }
+  // > | null>(null);
 
-  const [userProfile, setUserProfile] = useState<{
-    name?: string;
-    email?: string;
-    image?: string;
-  } | null>(null);
+  // const [userProfile, setUserProfile] = useState<{
+  //   name?: string;
+  //   email?: string;
+  //   image?: string;
+  // } | null>(null);
 
   const [selectedProjects, setSelectedProjects] = useState<Project[]>([]);
 
@@ -129,32 +127,24 @@ export default function Dashboard() {
 
   const searchParams = useSearchParams();
 
-  const chartColors = [
-    "hsl(var(--chart-1))",
-    "hsl(var(--chart-2))",
-    "hsl(var(--chart-3))",
-    "hsl(var(--chart-4))",
-    "hsl(var(--chart-5))",
-  ];
+  // function generateDynamicConfig(languages: string[]) {
+  //   const config: Record<string, { label: string; color: string }> = {};
 
-  function generateDynamicConfig(languages: string[]) {
-    const config: Record<string, { label: string; color: string }> = {};
+  //   languages.forEach((lang, i) => {
+  //     config[lang.toLowerCase()] = {
+  //       label: lang,
+  //       color: chartColors[i % chartColors.length], // rotate colors safely
+  //     };
+  //   });
 
-    languages.forEach((lang, i) => {
-      config[lang.toLowerCase()] = {
-        label: lang,
-        color: chartColors[i % chartColors.length], // rotate colors safely
-      };
-    });
-
-    return config;
-  }
+  //   return config;
+  // }
 
   const fetchLanguages = async (userEmail: string) => {
     const res = await fetch(`/api/project/files/get?ownerid=${userEmail}`);
     const data = await res.json();
 
-    console.log("File data", data);
+    // console.log("File data", data);
 
     const languageCount: Record<string, number> = {
       java: 0,
@@ -206,9 +196,9 @@ export default function Dashboard() {
     ];
 
     setLanguagesChartData(formatted);
-    const uniqueLanguages = languagesChartData.map((l) => l.name);
-    const dynamicConfigData = generateDynamicConfig(uniqueLanguages);
-    setDynamicConfig(dynamicConfigData);
+    // const uniqueLanguages = languagesChartData.map((l) => l.name);
+    // const dynamicConfigData = generateDynamicConfig(uniqueLanguages);
+    // setDynamicConfig(dynamicConfigData);
   };
 
   useEffect(() => {
@@ -268,10 +258,16 @@ export default function Dashboard() {
           }
         });
         const merged = Array.from(map.values());
-        console.log("Merged projects:", merged);
+        // console.log("Merged projects:", merged);
         setProjects(merged);
-      } catch (e) {
-        console.error("loadAll error", e);
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          toast.error(err.message);
+        } else if (typeof err === "string") {
+          toast.error(err);
+        } else {
+          toast.error("Error loading projects");
+        }
       } finally {
         setLoadingProjects(false);
       }
@@ -281,7 +277,7 @@ export default function Dashboard() {
     loadAll(); // ✅ run even if already mounted
 
     if (refresh) {
-      console.log("Force refreshing dashboard data after invite accept");
+      // console.log("Force refreshing dashboard data after invite accept");
     }
 
     const fetchProfile = async () => {
@@ -292,12 +288,13 @@ export default function Dashboard() {
           `/api/profile/get?email=${encodeURIComponent(email)}`
         );
         if (!res.ok) return;
-        const data = await res.json();
-        setUserProfile(data);
+        // const data = await res.json();
+        // setUserProfile(data);
       } catch (err) {
-        console.error("Profile fetch error:", err);
+        // console.error("Profile fetch error:", err);
+        toast.error("Error fetching profile");
       } finally {
-        setLoadingProfile(false);
+        // setLoadingProfile(false);
       }
     };
 
@@ -305,7 +302,8 @@ export default function Dashboard() {
       const userEmail = localStorage.getItem("userEmail");
       if (!userEmail) {
         setDurationsLoading(false);
-        console.warn("fetchStats: no userEmail in localStorage");
+        // console.warn("fetchStats: no userEmail in localStorage");
+        toast.warning("No user email found for fetching stats");
         return;
       }
 
@@ -317,7 +315,8 @@ export default function Dashboard() {
           )}`
         );
         if (!res.ok) {
-          console.error("project-stats fetch failed", res.status);
+          // console.error("project-stats fetch failed", res.status);
+          toast.error("Error fetching project statistics");
           setDurationsLoading(false);
           return;
         }
@@ -340,7 +339,8 @@ export default function Dashboard() {
             : [],
         });
       } catch (err) {
-        console.error("fetchStats error:", err);
+        // console.error("fetchStats error:", err);
+        toast.error("Error fetching project statistics");
       } finally {
         setDurationsLoading(false);
       }
@@ -382,7 +382,8 @@ export default function Dashboard() {
           `/api/project/get?ownerid=${encodeURIComponent(email)}`
         );
         if (!res.ok) {
-          console.warn("project/get failed", res.status);
+          // console.warn("project/get failed", res.status);
+          toast.warning("Error fetching owned projects");
           return [];
         }
         const json = await res.json();
@@ -397,10 +398,11 @@ export default function Dashboard() {
             : new Date(),
           role: "owner",
         }));
-        console.log("Owned projects:", list);
+        // console.log("Owned projects:", list);
         return list;
       } catch (e) {
-        console.error("fetchOwned error", e);
+        // console.error("fetchOwned error", e);
+        toast.error("Error fetching owned projects");
         return [];
       }
     };
@@ -411,11 +413,12 @@ export default function Dashboard() {
           `/api/collaborations/get?email=${encodeURIComponent(email)}`
         );
         if (!res.ok) {
-          console.warn("collaborations/get failed", res.status);
+          // console.warn("collaborations/get failed", res.status);
+          toast.warning("Error fetching collaborated projects");
           return [];
         }
         const json = await res.json();
-        console.log("Collaborations API response:", json);
+        // console.log("Collaborations API response:", json);
         const list = (json.projects || []).map((p: any) => ({
           project_id: p.project_id ?? p.id ?? null,
           name: p.name ?? "Untitled",
@@ -423,10 +426,11 @@ export default function Dashboard() {
           createdAt: parseCreatedAt(p.createdAt),
           role: "collaborator",
         }));
-        console.log("Collaborated projects parsed:", list);
+        // console.log("Collaborated projects parsed:", list);
         return list;
       } catch (e) {
-        console.error("fetchCollaborated error", e);
+        // console.error("fetchCollaborated error", e);
+        toast.error("Error fetching collaborated projects");
         return [];
       }
     };
@@ -448,16 +452,18 @@ export default function Dashboard() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ inviteId: pendingInvite, email }),
           });
-          const data = await res.json();
+          // const data = await res.json();
           if (res.ok) {
-            console.log("✅ Pending invite auto-accepted:", data);
+            // console.log("✅ Pending invite auto-accepted:", data);
             localStorage.removeItem("pendingInvite");
             window.location.href = "/dashboard?refresh=true";
           } else {
-            console.error("Failed auto-accept invite:", data);
+            // console.error("Failed auto-accept invite:", data);.
+            toast.error("Failed to accept pending invite");
           }
         } catch (err) {
-          console.error("Error auto-accepting invite:", err);
+          // console.error("Error auto-accepting invi..te:", err);
+          toast.error("Error accepting pending invite");
         }
       })();
     }
@@ -513,8 +519,8 @@ export default function Dashboard() {
       dialogCloseRef.current?.click();
       toast.success(`Project "${trimmed}" created successfully!`);
     } catch (err) {
-      console.error("Create project error:", err);
-      toast.error("Error creating project. Check console and server logs.");
+      // console.error("Create project error:", err);
+      toast.error("Error creating project.");
     } finally {
       setIsSaving(false);
     }
@@ -554,7 +560,7 @@ export default function Dashboard() {
       setSelectedProjects([]);
       inviteCloseRef.current?.click();
     } catch (err: any) {
-      console.error("Invite send error:", err);
+      // console.error("Invite send error:", err);
       toast.error(err.message || "Error sending invite.");
     } finally {
       setSendingInvite(false);
@@ -740,16 +746,16 @@ export default function Dashboard() {
     { month: "May", completed: 6 },
   ];
 
- const langToColorKey: Record<string, string> = {
-  JavaScript: "javascript",
-  Python: "python",
-  Java: "java",
-  TypeScript: "typescript",
-  "C++": "cpp",
-  C: "c",
-  SQL: "sql",
-  Others: "others",
-};
+  const langToColorKey: Record<string, string> = {
+    JavaScript: "javascript",
+    Python: "python",
+    Java: "java",
+    TypeScript: "typescript",
+    "C++": "cpp",
+    C: "c",
+    SQL: "sql",
+    Others: "others",
+  };
 
   const router = useRouter();
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin"; // Firebase Admin SDK
 
+export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
@@ -10,9 +11,7 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "Missing userEmail" }, { status: 400 });
         }
 
-        // ---------------------------
-        // 1️⃣ Fetch Completed Projects
-        // ---------------------------
+        
         const completedDoc = await adminDb
             .collection("completed_projects")
             .doc(userEmail)
@@ -24,9 +23,7 @@ export async function GET(req: Request) {
                 ? completedData.projects
                 : [];
 
-        // ---------------------------
-        // 2️⃣ Fetch Created Projects
-        // ---------------------------
+        
         const createdSnapshot = await adminDb
             .collection("projects")
             .where("ownerid", "==", userEmail)
@@ -41,9 +38,7 @@ export async function GET(req: Request) {
             };
         });
 
-        // ---------------------------
-        // 3️⃣ Calculations
-        // ---------------------------
+        
         const totalCreated = createdProjects.length;
         const totalCompleted = completedProjects.length;
 
@@ -54,9 +49,7 @@ export async function GET(req: Request) {
 
         const nonCompletedPercentage = 100 - completedPercentage;
 
-        // ---------------------------
-        // 4️⃣ Response
-        // ---------------------------
+       
         return NextResponse.json({
             totalCreated,
             totalCompleted,

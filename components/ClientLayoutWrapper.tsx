@@ -11,7 +11,7 @@ interface Props {
 function RedirectLogic({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { data: session, status } = useSession();
+  const {  status } = useSession();
   const [checking, setChecking] = useState(true);
   const [redirecting, setRedirecting] = useState(false);
 
@@ -19,7 +19,7 @@ function RedirectLogic({ children }: { children: ReactNode }) {
     const localUserEmail =
       typeof window !== "undefined" ? localStorage.getItem("userEmail") : null;
     
-    console.log(`loading status ${status}`);
+    // console.log(`loading status ${status}`);
 
     if (status === "loading") return;
 

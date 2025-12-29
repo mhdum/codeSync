@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-import { FileCode, Folder, Users, Settings, Loader2, Send } from "lucide-react";
+import { FileCode, Folder,  Settings } from "lucide-react";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { useEffect, useState } from "react";
@@ -18,11 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-interface Project {
-  name: string;
-  createdAt: Date;
-  project_id?: string;
-}
+
 
 const sideBarItems = [
   {

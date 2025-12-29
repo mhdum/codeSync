@@ -16,12 +16,6 @@ import { signIn } from "next-auth/react";
 import { FaGithub, FaGoogle } from "react-icons/fa";
 import { toast } from "sonner";
 
-interface FormData {
-  email: string;
-  password: string;
-  confirmPassword: string;
-}
-
 function SignUp() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -63,8 +57,11 @@ function SignUp() {
       if (!res.ok) throw new Error(data.error || "Signup failed");
 
       toast.success("User registered successfully! Now login.");
-    } catch (err: any) {
-      toast.error(err.message || "Failed to register user");
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Failed to register user";
+
+      toast.error(message);
     } finally {
       setLoading(false);
     }

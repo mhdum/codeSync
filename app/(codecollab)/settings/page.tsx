@@ -3,14 +3,12 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { FileCode, Folder, Users, Settings, Loader2 } from "lucide-react";
-import Link from "next/link";
+import {  Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEffect, useState } from "react";
-import SideBar from "@/components/SideBar";
 import { toast } from "sonner";
 
 export default function SettingsPage() {
@@ -39,7 +37,8 @@ export default function SettingsPage() {
         setName(data.name || "");
         setEmail(data.email || "");
       } catch (error) {
-        console.error(error);
+        // console.error(error);
+        toast.error("Error fetching profile");
       } finally {
         setLoadingProfile(false);
       }
@@ -65,7 +64,7 @@ export default function SettingsPage() {
       // alert("Profile updated successfully");
       toast.success("Profile updated successfully");
     } catch (error) {
-      console.error(error);
+      // console.error(error);
       // alert("Error updating profile");
       toast.error("Error updating profile");
     } finally {

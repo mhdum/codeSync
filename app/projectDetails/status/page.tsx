@@ -6,11 +6,17 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 
+interface Task {
+  projectId: string;
+  projectTitle: string;
+  completed: boolean;
+  name: string;
+}
 
 export default function ProjectsCompletionPage() {
   const [loading, setLoading] = useState(true);
-  const [completed, setCompleted] = useState<any[]>([]);
-  const [nonCompleted, setNonCompleted] = useState<any[]>([]);
+  const [completed, setCompleted] = useState<Task[]>([]);
+  const [nonCompleted, setNonCompleted] = useState<Task[]>([]);
   const [error, setError] = useState("");
   const [userEmail, setUserEmail] = useState<string | null>(null);
 
@@ -43,8 +49,12 @@ export default function ProjectsCompletionPage() {
 
         setCompleted(data.completed || []);
         setNonCompleted(data.nonCompleted || []);
-      } catch (err) {
-        setError("Something went wrong");
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError("Something went wrong");
+        }
       } finally {
         setLoading(false);
       }
@@ -66,9 +76,7 @@ export default function ProjectsCompletionPage() {
 
       <Separator className="my-8" />
 
-      {error && (
-        <p className="text-red-500 text-center font-medium">{error}</p>
-      )}
+      {error && <p className="text-red-500 text-center font-medium">{error}</p>}
 
       {!userEmail && (
         <p className="text-center text-sm text-muted-foreground">
@@ -78,9 +86,6 @@ export default function ProjectsCompletionPage() {
 
       {userEmail && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* ───────────────────────────────
-              COMPLETED PROJECTS
-          ─────────────────────────────── */}
           <Card className="border-l-4 border-l-green-500 dark:border-l-green-400">
             <CardHeader className="flex flex-row items-center gap-3">
               <Badge
@@ -91,7 +96,6 @@ export default function ProjectsCompletionPage() {
               </Badge>
               <CardTitle className="text-xl">Completed Projects</CardTitle>
             </CardHeader>
-
 
             <CardContent>
               {loading ? (
@@ -109,29 +113,26 @@ export default function ProjectsCompletionPage() {
                         pathname: "/open",
                         query: {
                           projectId: proj.projectId, // ✅ pass the project id
-                          filename: proj.projectTitle
-
+                          filename: proj.projectTitle,
                         },
-                      }}   // ← your dynamic page
+                      }} // ← your dynamic page
                     >
                       <li
                         className="flex items-center justify-between p-2 rounded-md 
                        hover:bg-muted/50 transition-colors cursor-pointer"
                       >
                         <span className="font-medium">{proj.projectTitle}</span>
-                        <Badge variant="secondary" className="text-xs">Done</Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          Done
+                        </Badge>
                       </li>
                     </Link>
                   ))}
                 </ul>
               )}
             </CardContent>
-
           </Card>
 
-          {/* ───────────────────────────────
-              NON–COMPLETED PROJECTS
-          ─────────────────────────────── */}
           <Card className="border-l-4 border-l-orange-500 dark:border-l-orange-400">
             <CardHeader className="flex flex-row items-center gap-3">
               <Badge
@@ -158,11 +159,10 @@ export default function ProjectsCompletionPage() {
                       href={{
                         pathname: "/open",
                         query: {
-                          projectId: proj.project_id, // ✅ pass the project id
-                          filename: proj.name
-
+                          projectId: proj.projectId, // ✅ pass the project id
+                          filename: proj.name,
                         },
-                      }}   // ← your dynamic page
+                      }} // ← your dynamic page
                     >
                       <li
                         className="flex items-center justify-between p-2 rounded-md 
@@ -171,7 +171,9 @@ export default function ProjectsCompletionPage() {
                         <span className="font-medium">
                           {proj.name || "Untitled Project"}
                         </span>
-                        <Badge variant="secondary" className="text-xs">In Progress</Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          In Progress
+                        </Badge>
                       </li>
                     </Link>
                   ))}
@@ -185,9 +187,6 @@ export default function ProjectsCompletionPage() {
   );
 }
 
-/* -------------------------------------------------------------------
-   Skeleton component for loading state
-------------------------------------------------------------------- */
 function SkeletonList() {
   return (
     <div className="space-y-3">

@@ -38,9 +38,19 @@ const languageColorMap: Record<string, string> = {
   R: "hsl(var(--chart-5))",
   Others: "hsl(var(--chart-5))",
 };
+interface LanguageStat {
+  name: string;
+  percent: number;
+}
+
+interface ProjectLanguages {
+  project: string;
+  languages: LanguageStat[];
+}
+
 
 export default function LanguagesUsagePage() {
-  const [projectLanguageData, setProjectLanguageData] = useState<any[]>([]);
+  const [projectLanguageData, setProjectLanguageData] = useState<ProjectLanguages[]>([]);
 
   const [userEmail, setUserEmail] = useState<string>("");
   
@@ -128,7 +138,7 @@ export default function LanguagesUsagePage() {
             </CardHeader>
             <CardContent>
               <ul className="space-y-2">
-                {proj.languages.map((lang: any) => (
+                {proj.languages.map((lang: LanguageStat) => (
                   <li
                     key={lang.name}
                     className="flex items-center justify-between"

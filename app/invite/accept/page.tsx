@@ -35,7 +35,7 @@ export default function AcceptInvitePage() {
         const data = await res.json();
 
         if (!res.ok) {
-          console.error("Invite accept failed:", data);
+          // console.error("Invite accept failed:", data);
           setMessage(`❌ ${data.error || "Failed to accept invitation."}`);
           return;
         }
@@ -46,7 +46,7 @@ export default function AcceptInvitePage() {
           window.location.href = "/dashboard?refresh=true";
         }, 1200);
       } catch (err) {
-        console.error("Accept error:", err);
+        // console.error("Accept error:", err);
         setMessage("Error accepting invitation.");
       }
     };
