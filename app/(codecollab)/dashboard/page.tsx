@@ -75,8 +75,6 @@ type CreatedProject = {
   createdAt?: { seconds: number };
 };
 
-
-
 export default function Dashboard() {
   const { data: session, status } = useSession();
   const [projectName, setProjectName] = useState("Project 1");
@@ -232,6 +230,77 @@ export default function Dashboard() {
   }, [status, session]);
 
   // Fetch profile and projects
+  const fetchOwned = async () => {
+    const email = localStorage.getItem("userEmail");
+    if (!email) return;
+    try {
+      const res = await fetch(
+        `/api/project/get?ownerid=${encodeURIComponent(email)}`
+      );
+      if (!res.ok) {
+        // console.warn("project/get failed", res.status);
+        // toast.warning("Error fetching owned projects");
+        return [];
+      }
+      const json = await res.json();
+      const list = (json.projects || []).map((p: any) => ({
+        project_id: p.project_id ?? p.id ?? null,
+        name: p.name ?? "Untitled",
+        ownerId: p.ownerid ?? email,
+        createdAt: p.createdAt?.seconds
+          ? new Date(p.createdAt.seconds * 1000)
+          : p.createdAt
+          ? new Date(p.createdAt)
+          : new Date(),
+        role: "owner",
+      }));
+      // console.log("Owned projects:", list);
+      return list;
+    } catch (e) {
+      // console.error("fetchOwned error", e);
+      toast.error("Error fetching owned projects");
+      return [];
+    }
+  };
+
+   const parseCreatedAt = (raw: any) => {
+      if (!raw) return new Date();
+      if (raw.seconds) return new Date(raw.seconds * 1000); // Firestore timestamp
+      if (typeof raw === "string") return new Date(raw); // ISO string
+      if (raw instanceof Date) return raw;
+      return new Date();
+    };
+  const fetchCollaborated = async () => {
+    const email = localStorage.getItem("userEmail");
+    if (!email) return;
+    try {
+      const res = await fetch(
+        `/api/collaborations/get?email=${encodeURIComponent(email)}`
+      );
+      if (!res.ok) {
+        // console.warn("collaborations/get failed", res.status);
+        // toast.warning("Error fetching collaborated projects");
+        return [];
+      }
+      const json = await res.json();
+      // console.log("Collaborations API response:", json);
+      const list = (json.projects || []).map((p: any) => ({
+        project_id: p.project_id ?? p.id ?? null,
+        name: p.name ?? "Untitled",
+        ownerId: p.ownerId ?? p.ownerid ?? null,
+        createdAt: parseCreatedAt(p.createdAt),
+        role: "collaborator",
+      }));
+      // console.log("Collaborated projects parsed:", list);
+      return list;
+    } catch (e) {
+      // console.error("fetchCollaborated error", e);
+      toast.error("Error fetching collaborated projects");
+
+      return [];
+    }
+  };
+
   useEffect(() => {
     const email = localStorage.getItem("userEmail");
     if (!email) return;
@@ -263,8 +332,10 @@ export default function Dashboard() {
       } catch (err: unknown) {
         if (err instanceof Error) {
           toast.error(err.message);
+          console.error("Error loading projects:", err);
         } else if (typeof err === "string") {
           toast.error(err);
+          console.error("Error loading projects:", err);
         } else {
           toast.error("Error loading projects");
         }
@@ -303,7 +374,7 @@ export default function Dashboard() {
       if (!userEmail) {
         setDurationsLoading(false);
         // console.warn("fetchStats: no userEmail in localStorage");
-        toast.warning("No user email found for fetching stats");
+        // toast.warning("No user email found for fetching stats");
         return;
       }
 
@@ -340,7 +411,7 @@ export default function Dashboard() {
         });
       } catch (err) {
         // console.error("fetchStats error:", err);
-        toast.error("Error fetching project statistics");
+        // toast.error("Error fetching project statistics");
       } finally {
         setDurationsLoading(false);
       }
@@ -368,72 +439,7 @@ export default function Dashboard() {
     //   }
     // };
 
-    const parseCreatedAt = (raw: any) => {
-      if (!raw) return new Date();
-      if (raw.seconds) return new Date(raw.seconds * 1000); // Firestore timestamp
-      if (typeof raw === "string") return new Date(raw); // ISO string
-      if (raw instanceof Date) return raw;
-      return new Date();
-    };
-
-    const fetchOwned = async () => {
-      try {
-        const res = await fetch(
-          `/api/project/get?ownerid=${encodeURIComponent(email)}`
-        );
-        if (!res.ok) {
-          // console.warn("project/get failed", res.status);
-          toast.warning("Error fetching owned projects");
-          return [];
-        }
-        const json = await res.json();
-        const list = (json.projects || []).map((p: any) => ({
-          project_id: p.project_id ?? p.id ?? null,
-          name: p.name ?? "Untitled",
-          ownerId: p.ownerid ?? email,
-          createdAt: p.createdAt?.seconds
-            ? new Date(p.createdAt.seconds * 1000)
-            : p.createdAt
-            ? new Date(p.createdAt)
-            : new Date(),
-          role: "owner",
-        }));
-        // console.log("Owned projects:", list);
-        return list;
-      } catch (e) {
-        // console.error("fetchOwned error", e);
-        toast.error("Error fetching owned projects");
-        return [];
-      }
-    };
-
-    const fetchCollaborated = async () => {
-      try {
-        const res = await fetch(
-          `/api/collaborations/get?email=${encodeURIComponent(email)}`
-        );
-        if (!res.ok) {
-          // console.warn("collaborations/get failed", res.status);
-          toast.warning("Error fetching collaborated projects");
-          return [];
-        }
-        const json = await res.json();
-        // console.log("Collaborations API response:", json);
-        const list = (json.projects || []).map((p: any) => ({
-          project_id: p.project_id ?? p.id ?? null,
-          name: p.name ?? "Untitled",
-          ownerId: p.ownerId ?? p.ownerid ?? null,
-          createdAt: parseCreatedAt(p.createdAt),
-          role: "collaborator",
-        }));
-        // console.log("Collaborated projects parsed:", list);
-        return list;
-      } catch (e) {
-        // console.error("fetchCollaborated error", e);
-        toast.error("Error fetching collaborated projects");
-        return [];
-      }
-    };
+   
 
     loadAll();
     fetchStats();
@@ -562,6 +568,7 @@ export default function Dashboard() {
     } catch (err: any) {
       // console.error("Invite send error:", err);
       toast.error(err.message || "Error sending invite.");
+      console.error("Error sending invite:", err);
     } finally {
       setSendingInvite(false);
     }

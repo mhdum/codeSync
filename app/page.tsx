@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Code, Users, Zap } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import screenShot from "@/public/sc.png";
+import screenShot from "@/public/sc2.png";
 import Navbar from "@/components/NavBar";
 import "@/app/globals.css";
 import ParticlesBackground from "@/components/ParticlesBackGround";

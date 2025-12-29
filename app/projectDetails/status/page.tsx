@@ -155,14 +155,14 @@ export default function ProjectsCompletionPage() {
                 <ul className="space-y-3">
                   {nonCompleted.map((proj) => (
                     <Link
-                      key={proj.projectId}
+                      key={`${proj.projectId}-${proj.name}`}
                       href={{
                         pathname: "/open",
                         query: {
-                          projectId: proj.projectId, // ✅ pass the project id
+                          projectId: proj.projectId,
                           filename: proj.name,
                         },
-                      }} // ← your dynamic page
+                      }}
                     >
                       <li
                         className="flex items-center justify-between p-2 rounded-md 
